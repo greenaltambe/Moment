@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Moment Pause</title>
   <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-16.png">
@@ -54,6 +54,30 @@
       <span class="dest-label">Destination</span>
       <div id="destUrl" class="dest-value" tabindex="0">Loading destination...</div>
     </div>
+
+    <!-- Access Scope Selector -->
+    <fieldset class="unlock-scope-section">
+      <legend class="scope-legend">Access scope</legend>
+      <div class="scope-options" role="radiogroup" aria-label="Access scope">
+        <label class="scope-card selected" id="scopeCardThisTab" for="scopeThisTab">
+          <input type="radio" name="unlockScope" id="scopeThisTab" value="THIS_TAB_ONLY" checked>
+          <span class="scope-radio-visual" aria-hidden="true"></span>
+          <div class="scope-content">
+            <span class="scope-name">This tab only</span>
+            <span class="scope-desc">Access this site in the current tab.</span>
+          </div>
+        </label>
+
+        <label class="scope-card" id="scopeCardAllTabs" for="scopeAllTabs">
+          <input type="radio" name="unlockScope" id="scopeAllTabs" value="ALL_TABS_UNTIL_EXPIRATION">
+          <span class="scope-radio-visual" aria-hidden="true"></span>
+          <div class="scope-content">
+            <span class="scope-name">All tabs until expiration</span>
+            <span class="scope-desc">Allow this site across tabs until the timer expires.</span>
+          </div>
+        </label>
+      </div>
+    </fieldset>
 
     <!-- Action Buttons -->
     <div class="actions">

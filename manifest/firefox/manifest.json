@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Moment — Intentional Website Blocker",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Create a moment between impulse and action. A research-informed, privacy-first intentionality tool.",
   "browser_specific_settings": {
     "gecko": {

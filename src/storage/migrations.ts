@@ -145,6 +145,17 @@ function sanitizeRuntime(rawRuntime: unknown): any {
       ? rawRuntime.focusSession
       : null;
 
+  const sitePasses: Record<string, any> = {};
+  if (isObject(rawRuntime.sitePasses)) {
+    for (const [key, pass] of Object.entries(rawRuntime.sitePasses)) {
+      if (!isObject(pass)) continue;
+      sitePasses[key] = {
+        ...pass,
+        scope: pass.scope === 'ALL_TABS_UNTIL_EXPIRATION' ? 'ALL_TABS_UNTIL_EXPIRATION' : 'THIS_TAB_ONLY',
+      };
+    }
+  }
+
   return {
     pendingInterventions: isObject(rawRuntime.pendingInterventions)
       ? rawRuntime.pendingInterventions
@@ -152,7 +163,7 @@ function sanitizeRuntime(rawRuntime: unknown): any {
     temporaryAccessGrants: isObject(rawRuntime.temporaryAccessGrants)
       ? rawRuntime.temporaryAccessGrants
       : {},
-    sitePasses: isObject(rawRuntime.sitePasses) ? rawRuntime.sitePasses : {},
+    sitePasses,
     intentPasses: isObject(rawRuntime.intentPasses) ? rawRuntime.intentPasses : {},
     tracking: isObject(rawRuntime.tracking) ? rawRuntime.tracking : undefined,
     focusSession,

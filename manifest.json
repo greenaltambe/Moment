@@ -1,0 +1,72 @@
+{
+  "manifest_version": 3,
+  "name": "Moment — Intentional Website Blocker",
+  "version": "1.2.1",
+  "description": "Create a moment between impulse and action. A research-informed, privacy-first intentionality tool.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "moment@moment.local",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    },
+    "gecko_android": {
+      "strict_min_version": "142.0"
+    }
+  },
+  "permissions": [
+    "storage",
+    "tabs",
+    "webNavigation",
+    "alarms"
+  ],
+  "background": {
+    "scripts": ["background/index.js"],
+    "type": "module"
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_popup": "ui/popup/popup.html",
+    "default_title": "Moment",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png"
+    }
+  },
+  "options_ui": {
+    "page": "ui/options/options.html",
+    "open_in_tab": true
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "ui/intervene/intervene.html",
+        "ui/intervene/intervene.js",
+        "ui/intervene/intervene.css",
+        "ui/block/block.html",
+        "ui/block/block.js",
+        "ui/block/block.css",
+        "ui/theme.css",
+        "ui/theme.js",
+        "shared/urls.js",
+        "icons/icon-16.png",
+        "icons/icon-32.png",
+        "icons/icon-48.png",
+        "icons/icon-96.png",
+        "icons/icon-128.png"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none';"
+  }
+}

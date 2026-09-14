@@ -1,6 +1,6 @@
 {
   "name": "moment",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A research-informed, privacy-first website blocker and intentionality tool",
   "private": true,
   "type": "module",
@@ -9,7 +9,9 @@
     "test": "node scripts/test.js",
     "typecheck": "node scripts/typecheck.js",
     "lint": "node scripts/lint.js",
-    "pack:firefox": "cd dist/firefox && zip -r -FS ../addon.zip . && cd ../.."
+    "pack:firefox": "cd dist/firefox && zip -r -FS ../addon.zip . && cd ../..",
+    "pack:source": "rm -f src.zip dist/source.zip && zip -r src.zip manifest.json package.json tsconfig.json README.md ARCHITECTURE.md src scripts manifest tests -x '*.git*' && cp src.zip dist/source.zip",
+    "pack": "npm run build && npm run pack:firefox && npm run pack:source"
   },
   "keywords": [
     "browser-extension",
@@ -20,5 +22,8 @@
     "firefox"
   ],
   "author": "Moment Project",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
 }

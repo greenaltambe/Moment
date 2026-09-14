@@ -106,7 +106,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const sidebarVersionDisplay = document.getElementById('sidebarVersionDisplay')!;
   const extensionVersionDisplay = document.getElementById('extensionVersionDisplay')!;
   const schemaVersionDisplay = document.getElementById('schemaVersionDisplay')!;
-  const storageStatusDisplay = document.getElementById('storageStatusDisplay')!;
 
   // Usage Card Elements
   const todayUsageCard = document.getElementById('todayUsageCard')!;
@@ -1293,8 +1292,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
     chrome.runtime.sendMessage({ type: 'GET_STATE' }, (res: any) => {
       if (res?.success && res.data) {
-        schemaVersionDisplay.textContent = `Version ${res.data.schemaVersion || 3}`;
-        storageStatusDisplay.textContent = 'Connected (MV3 Local)';
+        schemaVersionDisplay.textContent = `v${res.data.schemaVersion || 3}`;
       }
     });
   }

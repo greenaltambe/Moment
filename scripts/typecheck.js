@@ -8,7 +8,21 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const ts = require('/usr/share/code/resources/app/extensions/node_modules/typescript/lib/typescript.js');
+
+function resolveTypeScript() {
+  try {
+    return require('typescript');
+  } catch {
+    try {
+      return require('/usr/share/code/resources/app/extensions/node_modules/typescript/lib/typescript.js');
+    } catch {
+      console.error('[Error] TypeScript not found. Please install dependencies with: npm install');
+      process.exit(1);
+    }
+  }
+}
+
+const ts = resolveTypeScript();
 
 console.log(`[Typecheck] Running TypeScript v${ts.version}...`);
 

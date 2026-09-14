@@ -9,11 +9,11 @@ import { BackgroundLifecycle } from './lifecycle.js';
 import { Logger } from '../diagnostics/logger.js';
 import { isValidMessage, MomentMessage } from '../shared/messages.js';
 import { TemporaryAccessGrant } from '../core/models/grant.js';
-import { SitePass } from '../core/models/site-pass.js';
+import { SitePass, SitePassScope } from '../core/models/site-pass.js';
 import { IntentPass } from '../core/models/intent-pass.js';
 import { FocusSession } from '../core/models/focus-session.js';
 import { resolveGrantDuration, isGrantValidForNavigation } from '../core/grants/grant-validator.js';
-import { resolveSiteScope, isSitePassValidForNavigation } from '../core/grants/site-pass-validator.js';
+import { resolveSiteScope, resolveSitePassDuration, isSitePassValidForNavigation } from '../core/grants/site-pass-validator.js';
 import {
   resolveIntentPassDuration,
   resolveIntentPassScope,
@@ -24,7 +24,6 @@ import {
   isFocusSessionActive,
   filterValidFocusCollectionIds,
 } from '../core/focus/focus-validator.js';
-import { DEFAULT_SITE_PASS_DURATION_MS } from '../shared/constants.js';
 import { MomentDecisionEngine } from '../core/decisions/engine.js';
 import { isSafeDestination } from '../shared/urls.js';
 import { parseCanonicalUrl, toCanonicalString } from '../core/matching/url.js';
@@ -208,8 +207,8 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
     }
 
     case 'COMPLETE_INTERVENTION': {
-      const { tabId, targetUrl, nonce, durationMs, intentionText } = message;
-      logger.info('Processing COMPLETE_INTERVENTION', { tabId, targetUrl });
+      const { tabId, targetUrl, nonce, durationMs, intentionText, unlockScope: requestedUnlockScope } = message;
+      logger.info('Processing COMPLETE_INTERVENTION', { tabId, targetUrl, unlockScope: requestedUnlockScope });
 
       const senderTabId = _sender?.tab?.id;
       if (senderTabId !== undefined && senderTabId !== tabId) {
@@ -302,14 +301,21 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
         const siteScope = resolveSiteScope(normalizedTargetUrl, matchedRule);
 
         if (siteScope) {
-          const unlockScope = draft.settings?.temporaryUnlockScope || 'THIS_TAB_ONLY';
+          const validatedScope: SitePassScope =
+            requestedUnlockScope === 'ALL_TABS_UNTIL_EXPIRATION'
+              ? 'ALL_TABS_UNTIL_EXPIRATION'
+              : requestedUnlockScope === 'THIS_TAB_ONLY'
+                ? 'THIS_TAB_ONLY'
+                : (draft.settings?.temporaryUnlockScope || 'THIS_TAB_ONLY');
+
+          const passDuration = resolveSitePassDuration(durationMs);
           const sitePass: SitePass = {
             id: `pass_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
             tabId,
             site: siteScope,
             grantedAt: now,
-            expiresAt: now + DEFAULT_SITE_PASS_DURATION_MS,
-            scope: unlockScope,
+            expiresAt: now + passDuration,
+            scope: validatedScope,
           };
           if (!draft.runtime.sitePasses) {
             draft.runtime.sitePasses = {};
@@ -417,6 +423,7 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
             },
             usage,
             intentPass: null,
+            sitePass: null,
             focusSession: activeFocusSessionInfo,
           },
         };
@@ -439,6 +446,7 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
             },
             usage,
             intentPass: null,
+            sitePass: null,
             focusSession: activeFocusSessionInfo,
           },
         };
@@ -472,6 +480,7 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
             },
             usage,
             intentPass: null,
+            sitePass: null,
             focusSession: activeFocusSessionInfo,
           },
         };
@@ -541,6 +550,32 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
         }
       }
 
+      let activeSitePassInfo: any = null;
+      const validSitePass = targetTab?.url
+        ? findValidSitePass(state.runtime.sitePasses, targetTab.id, targetTab.url, now)
+        : null;
+
+      if (validSitePass) {
+        activeSitePassInfo = {
+          id: validSitePass.id,
+          site: validSitePass.site,
+          grantedAt: validSitePass.grantedAt,
+          expiresAt: validSitePass.expiresAt,
+          remainingSeconds: Math.max(0, Math.ceil((validSitePass.expiresAt - now) / 1000)),
+          scope: validSitePass.scope || 'THIS_TAB_ONLY',
+        };
+      }
+
+      let effectiveAction = decision.action;
+      let effectiveReason = decision.reason;
+      let effectiveExplanation = decision.explanation;
+
+      if (validSitePass) {
+        effectiveAction = 'ALLOW';
+        effectiveReason = 'SITE_PASS';
+        effectiveExplanation = 'Temporary access is active.';
+      }
+
       return {
         success: true,
         data: {
@@ -551,13 +586,14 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
           collection: matchedCollection,
           rule: matchedRule,
           decision: {
-            action: decision.action,
-            reason: decision.reason,
-            explanation: decision.explanation,
+            action: effectiveAction,
+            reason: effectiveReason,
+            explanation: effectiveExplanation,
             isLimitExhausted: decision.reason === 'DAILY_LIMIT_EXHAUSTED',
           },
           usage,
           intentPass: activeIntentPassInfo,
+          sitePass: activeSitePassInfo,
           focusSession: activeFocusSessionInfo,
         },
       };
@@ -1147,6 +1183,51 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
       return { success: true };
     }
 
+    case 'END_SITE_PASS': {
+      logger.info('Processing END_SITE_PASS', { tabId: message.tabId, passId: message.passId, site: message.site });
+      let revokedPass: SitePass | null = null;
+      await storage.updateState((draft) => {
+        if (!draft.runtime.sitePasses) return;
+        if (message.passId) {
+          for (const [key, pass] of Object.entries(draft.runtime.sitePasses)) {
+            if (pass.id === message.passId) {
+              revokedPass = pass;
+              delete draft.runtime.sitePasses[key];
+              break;
+            }
+          }
+        } else if (message.tabId !== undefined) {
+          const key = String(message.tabId);
+          if (draft.runtime.sitePasses[key]) {
+            revokedPass = draft.runtime.sitePasses[key];
+            delete draft.runtime.sitePasses[key];
+          }
+        } else if (message.site) {
+          const targetSite = message.site.toLowerCase().trim();
+          for (const [key, pass] of Object.entries(draft.runtime.sitePasses)) {
+            if (pass.site.toLowerCase().trim() === targetSite) {
+              revokedPass = pass;
+              delete draft.runtime.sitePasses[key];
+              break;
+            }
+          }
+        }
+      });
+
+      if (revokedPass) {
+        const allTabs = await adapter.getAllTabs();
+        for (const openTab of allTabs) {
+          if (openTab.url && (openTab.url.startsWith('http://') || openTab.url.startsWith('https://'))) {
+            if (isSitePassValidForNavigation(revokedPass, openTab.id, openTab.url, (revokedPass as SitePass).expiresAt - 1)) {
+              await evaluateAndEnforceNavigation(openTab.id, openTab.url, 'COMMITTED');
+            }
+          }
+        }
+      }
+
+      return { success: true, data: { revoked: Boolean(revokedPass) } };
+    }
+
     case 'START_FOCUS_MODE': {
       const state = await storage.getState();
       const durationMs = resolveFocusModeDuration(message.durationMs);
@@ -1220,18 +1301,6 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
         draft.runtime.focusSession = null;
       });
       logger.info('Focus Mode ended manually');
-      return { success: true };
-    }
-
-    case 'RESET_ALL_GRANTS_TEST': {
-      logger.info('Resetting all test grants...');
-      await storage.updateState((draft) => {
-        draft.runtime.pendingInterventions = {};
-        draft.runtime.temporaryAccessGrants = {};
-        draft.runtime.sitePasses = {};
-        draft.runtime.intentPasses = {};
-        draft.runtime.focusSession = null;
-      });
       return { success: true };
     }
 

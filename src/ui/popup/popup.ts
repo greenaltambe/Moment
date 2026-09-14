@@ -23,6 +23,14 @@ async function initPopup(): Promise<void> {
   const intentPassScopeText = document.getElementById('intentPassScopeText')!;
   const btnEndIntentPass = document.getElementById('btnEndIntentPass') as HTMLButtonElement;
 
+  // Site Pass Elements
+  const sitePassCard = document.getElementById('sitePassCard')!;
+  const sitePassCountdown = document.getElementById('sitePassCountdown')!;
+  const sitePassScopeText = document.getElementById('sitePassScopeText')!;
+  const btnEndSitePass = document.getElementById('btnEndSitePass') as HTMLButtonElement;
+
+  let sitePassTimerInterval: any = null;
+
   // Focus Mode Elements
   const focusModeActiveCard = document.getElementById('focusModeActiveCard')!;
   const focusModeCountdown = document.getElementById('focusModeCountdown')!;
@@ -126,7 +134,10 @@ async function initPopup(): Promise<void> {
 
     // 2. Status Badge
     siteStatusBadge.className = 'status-badge';
-    if (state.intentPass) {
+    if (state.sitePass) {
+      siteStatusBadge.textContent = 'Access Active';
+      siteStatusBadge.classList.add('status-allowed');
+    } else if (state.intentPass) {
       siteStatusBadge.textContent = 'Intent Pass';
       siteStatusBadge.classList.add('status-intent-pass');
     } else if (state.decision.reason === 'FOCUS_MODE') {
@@ -218,14 +229,9 @@ async function initPopup(): Promise<void> {
       }
 
       focusTimerInterval = setInterval(() => {
+        localRemainingSeconds--;
         if (localRemainingSeconds > 0) {
-          localRemainingSeconds -= 1;
           updateFocusCountdown();
-          if (localRemainingSeconds <= 0) {
-            clearInterval(focusTimerInterval);
-            focusTimerInterval = null;
-            refreshSiteState();
-          }
         } else {
           clearInterval(focusTimerInterval);
           focusTimerInterval = null;
@@ -241,7 +247,46 @@ async function initPopup(): Promise<void> {
       }
     }
 
-    // 6. Intent Pass Active Card
+    // 6. Site Pass Active Card
+    if (state.sitePass) {
+      sitePassCard.classList.remove('is-hidden');
+      let localSitePassSeconds = state.sitePass.remainingSeconds;
+
+      const formatSitePassTime = (sec: number) => {
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return `${m}:${s < 10 ? '0' : ''}${s} remaining`;
+      };
+
+      sitePassCountdown.textContent = formatSitePassTime(localSitePassSeconds);
+      sitePassScopeText.textContent = state.sitePass.scope === 'ALL_TABS_UNTIL_EXPIRATION'
+        ? 'All tabs until expiration'
+        : 'This tab only';
+
+      if (sitePassTimerInterval) {
+        clearInterval(sitePassTimerInterval);
+        sitePassTimerInterval = null;
+      }
+
+      sitePassTimerInterval = setInterval(() => {
+        localSitePassSeconds--;
+        if (localSitePassSeconds > 0) {
+          sitePassCountdown.textContent = formatSitePassTime(localSitePassSeconds);
+        } else {
+          clearInterval(sitePassTimerInterval);
+          sitePassTimerInterval = null;
+          refreshSiteState();
+        }
+      }, 1000);
+    } else {
+      sitePassCard.classList.add('is-hidden');
+      if (sitePassTimerInterval) {
+        clearInterval(sitePassTimerInterval);
+        sitePassTimerInterval = null;
+      }
+    }
+
+    // 7. Intent Pass Active Card
     if (state.intentPass) {
       intentPassCard.classList.remove('is-hidden');
       const remSec = state.intentPass.remainingSeconds;
@@ -508,6 +553,32 @@ async function initPopup(): Promise<void> {
     quickAddDrawer.classList.add('is-hidden');
     quickAddDrawer.setAttribute('aria-hidden', 'true');
     refreshSiteState();
+  });
+
+  // End Site Pass Action
+  btnEndSitePass.addEventListener('click', () => {
+    if (!currentTabState || currentTabState.tabId === undefined || currentTabState.tabId < 0) return;
+    btnEndSitePass.disabled = true;
+    showStatus('Ending access...', 'info');
+    if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+      chrome.runtime.sendMessage(
+        {
+          type: 'END_SITE_PASS',
+          tabId: currentTabState.tabId,
+          passId: currentTabState.sitePass?.id,
+          site: currentTabState.sitePass?.site,
+        },
+        (res: any) => {
+          btnEndSitePass.disabled = false;
+          if (res?.success) {
+            showStatus('Access ended.', 'success');
+            refreshSiteState();
+          } else {
+            showStatus(res?.error || 'Could not end access', 'error');
+          }
+        }
+      );
+    }
   });
 
   // End Intent Pass Action

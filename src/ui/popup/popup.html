@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Moment</title>
   <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-16.png">
@@ -38,6 +38,18 @@
         <p id="focusModeScopeText" class="focus-mode-scope">Focusing on selected collections</p>
         <button id="btnEndFocus" class="btn btn-sm btn-outline-danger" type="button">
           End Focus
+        </button>
+      </section>
+
+      <!-- Temporary Site Pass Active Card -->
+      <section id="sitePassCard" class="site-pass-card is-hidden" aria-label="Active Site Access" aria-live="polite">
+        <div class="site-pass-header">
+          <span class="site-pass-badge">Access Active</span>
+          <span id="sitePassCountdown" class="site-pass-timer">5:00 remaining</span>
+        </div>
+        <p id="sitePassScopeText" class="site-pass-scope">This tab only</p>
+        <button id="btnEndSitePass" class="btn btn-sm btn-outline-danger" type="button">
+          End Access
         </button>
       </section>
 

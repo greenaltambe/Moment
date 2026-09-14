@@ -38,6 +38,28 @@ document.addEventListener('DOMContentLoaded', () => {
   const intentionBox = document.getElementById('intentionBox')!;
   const intentionInput = document.getElementById('intentionText') as HTMLTextAreaElement;
 
+  // Access Scope selection elements
+  const scopeCardThisTab = document.getElementById('scopeCardThisTab');
+  const scopeCardAllTabs = document.getElementById('scopeCardAllTabs');
+  const scopeThisTab = document.getElementById('scopeThisTab') as HTMLInputElement | null;
+  const scopeAllTabs = document.getElementById('scopeAllTabs') as HTMLInputElement | null;
+
+  function updateScopeSelection() {
+    if (scopeCardThisTab && scopeThisTab) {
+      scopeCardThisTab.classList.toggle('selected', scopeThisTab.checked);
+    }
+    if (scopeCardAllTabs && scopeAllTabs) {
+      scopeCardAllTabs.classList.toggle('selected', scopeAllTabs.checked);
+    }
+  }
+
+  if (scopeThisTab) {
+    scopeThisTab.addEventListener('change', updateScopeSelection);
+  }
+  if (scopeAllTabs) {
+    scopeAllTabs.addEventListener('change', updateScopeSelection);
+  }
+
   // Validation: Guard against missing or malformed navigation params
   if (!targetUrl || tabId === -1 || !nonce) {
     destUrlEl.textContent = 'Invalid or missing navigation parameters.';
@@ -246,6 +268,9 @@ document.addEventListener('DOMContentLoaded', () => {
     statusMsg.textContent = 'Authorizing temporary access...';
 
     const intentionText = intentionInput ? intentionInput.value.trim() : '';
+    const unlockScope = scopeAllTabs && scopeAllTabs.checked
+      ? 'ALL_TABS_UNTIL_EXPIRATION'
+      : 'THIS_TAB_ONLY';
 
     if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
       chrome.runtime.sendMessage(
@@ -255,10 +280,14 @@ document.addEventListener('DOMContentLoaded', () => {
           targetUrl,
           nonce,
           intentionText,
+          unlockScope,
         },
         (res: any) => {
           if (res && res.success && res.data?.targetUrl) {
-            statusMsg.textContent = "Authorized. You're free to browse for 5 minutes.";
+            const scopeMsg = unlockScope === 'ALL_TABS_UNTIL_EXPIRATION'
+              ? 'Authorized across all tabs for 5 minutes.'
+              : "Authorized. You're free to browse for 5 minutes.";
+            statusMsg.textContent = scopeMsg;
             // Mandatory Invariant: Use window.location.replace to eliminate back-button loops
             window.location.replace(res.data.targetUrl);
           } else {

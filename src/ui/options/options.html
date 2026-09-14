@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Moment Dashboard</title>
   <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-16.png">
@@ -38,7 +38,7 @@
 
       <div class="sidebar-footer">
         <div class="system-meta">
-          <span id="sidebarVersionDisplay">Moment v1.2.0</span>
+          <span id="sidebarVersionDisplay">Moment v1.2.1</span>
           <span>Schema v3</span>
         </div>
       </div>
@@ -203,35 +203,61 @@
       <!-- Tab 4: About & Privacy -->
       <section id="tab-privacy" class="tab-pane is-hidden" role="tabpanel" aria-labelledby="nav-privacy">
         <div class="privacy-container settings-grid">
+          <!-- Privacy Intro & Your Data -->
           <div class="settings-card">
-            <h3>Local-First Architecture</h3>
-            <p class="card-desc">Moment is engineered with absolute respect for your privacy.</p>
-            <ul class="privacy-list">
-              <li><strong>Zero Telemetry:</strong> No analytics, tracking pixels, or network pings are ever executed.</li>
-              <li><strong>Local Storage:</strong> All rules, collections, usage logs, and temporary passes remain exclusively on your machine.</li>
-              <li><strong>No Cloud Dependency:</strong> Moment works completely offline and will never require an account or login.</li>
-              <li><strong>Mindful Pauses:</strong> We do not rely on shame language or unbreakable traps. Moment creates space for conscious choice.</li>
-            </ul>
+            <h3>Private by design.</h3>
+            <p class="card-desc">Moment is a local-first browser extension. Your Moment data is stored on your device and is not sent to Moment or a remote server.</p>
+
+            <h4 class="privacy-section-heading">Your Data</h4>
+            <div class="privacy-data-list">
+              <div class="privacy-data-item">
+                <span class="privacy-item-title">Local Storage</span>
+                <span class="privacy-item-desc">Moment stores your rules, collections, settings, usage history, and temporary passes locally on your device.</span>
+              </div>
+              <div class="privacy-data-item">
+                <span class="privacy-item-title">No Telemetry</span>
+                <span class="privacy-item-desc">Moment does not send analytics, telemetry, or usage information to remote servers.</span>
+              </div>
+              <div class="privacy-data-item">
+                <span class="privacy-item-title">No Tracking</span>
+                <span class="privacy-item-desc">Moment does not use tracking pixels, advertising identifiers, or third-party analytics.</span>
+              </div>
+              <div class="privacy-data-item">
+                <span class="privacy-item-title">No Account</span>
+                <span class="privacy-item-desc">Moment does not require an account, login, or cloud service.</span>
+              </div>
+              <div class="privacy-data-item">
+                <span class="privacy-item-title">Works Offline</span>
+                <span class="privacy-item-desc">Moment's core functionality does not depend on an internet connection.</span>
+              </div>
+            </div>
           </div>
 
+          <!-- Our Philosophy -->
           <div class="settings-card">
-            <h3>System Diagnostics</h3>
+            <h3>Our Philosophy</h3>
+            <p class="philosophy-text">Moment is designed to interrupt automatic browsing and create space for conscious choice. Its interventions are intended to be mindful rather than punitive — without shame, dark patterns, or unbreakable traps.</p>
+          </div>
+
+          <!-- System Information -->
+          <div class="settings-card">
+            <h3>System Information</h3>
             <div class="diagnostics-grid">
               <div class="diag-item">
-                <span class="diag-label">Extension Version</span>
-                <span class="diag-value" id="extensionVersionDisplay">1.2.0</span>
+                <span class="diag-label">Moment Version</span>
+                <span class="diag-value" id="extensionVersionDisplay">1.2.1</span>
               </div>
               <div class="diag-item">
-                <span class="diag-label">Manifest Specification</span>
-                <span class="diag-value">MV3 (Chrome & Firefox)</span>
+                <span class="diag-label">Manifest</span>
+                <span class="diag-value">MV3</span>
               </div>
               <div class="diag-item">
                 <span class="diag-label">Storage Schema</span>
-                <span class="diag-value" id="schemaVersionDisplay">Version 3</span>
+                <span class="diag-value" id="schemaVersionDisplay">v3</span>
               </div>
               <div class="diag-item">
-                <span class="diag-label">Storage Engine</span>
-                <span class="diag-value" id="storageStatusDisplay">Connected</span>
+                <span class="diag-label">Platforms</span>
+                <span class="diag-value">Chrome / Firefox</span>
               </div>
             </div>
           </div>
@@ -418,7 +444,7 @@
               </div>
 
               <!-- Moment Library Intensity Selection -->
-              <div id="colMomentLibraryGroup" class="is-hidden mt-xs">
+              <div id="colMomentLibraryGroup" class="is-hidden mt-sm">
                 <label class="form-label sub-label">Message Intensity</label>
                 <div class="radio-group" role="radiogroup" aria-label="Message Intensity">
                   <label class="radio-option">

@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Production Build and Package Artifacts
+dist/
+*.zip
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test & Coverage Output
+coverage/
+.nyc_output/
+
+# OS Metadata
+.DS_Store
+Thumbs.db
+
+# Editor and IDE Metadata
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~

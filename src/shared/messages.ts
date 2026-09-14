@@ -8,6 +8,7 @@ import { TargetRuleType, Target } from '../core/models/target.js';
 import { Collection, OpeningMessageMode, MessageIntensity, WhenAccessExpires } from '../core/models/collection.js';
 import { BoundaryPolicy } from '../core/models/boundary.js';
 import { UserSettings } from '../storage/schema.js';
+import { SitePassScope } from '../core/models/site-pass.js';
 
 export type MessageType =
   | 'GET_STATE'
@@ -17,7 +18,6 @@ export type MessageType =
   | 'COMPLETE_INTERVENTION'
   | 'CANCEL_INTERVENTION'
   | 'GET_CAPABILITIES'
-  | 'RESET_ALL_GRANTS_TEST'
   | 'GET_TAB_USAGE'
   | 'GET_COLLECTION_USAGE'
   | 'GET_CURRENT_SITE_STATE'
@@ -37,7 +37,8 @@ export type MessageType =
   | 'END_INTENT_PASS'
   | 'START_FOCUS_MODE'
   | 'GET_FOCUS_MODE_STATUS'
-  | 'END_FOCUS_MODE';
+  | 'END_FOCUS_MODE'
+  | 'END_SITE_PASS';
 
 export interface BaseMessage {
   readonly type: MessageType;
@@ -71,12 +72,20 @@ export interface CompleteInterventionMessage extends BaseMessage {
   readonly nonce: string;
   readonly durationMs?: number;
   readonly intentionText?: string;
+  readonly unlockScope?: SitePassScope;
 }
 
 export interface CancelInterventionMessage extends BaseMessage {
   readonly type: 'CANCEL_INTERVENTION';
   readonly tabId: number;
   readonly nonce: string;
+}
+
+export interface EndSitePassMessage extends BaseMessage {
+  readonly type: 'END_SITE_PASS';
+  readonly tabId?: number;
+  readonly passId?: string;
+  readonly site?: string;
 }
 
 export interface RequestIntentPassMessage extends BaseMessage {
@@ -111,10 +120,6 @@ export interface EndFocusModeMessage extends BaseMessage {
 
 export interface GetCapabilitiesMessage extends BaseMessage {
   readonly type: 'GET_CAPABILITIES';
-}
-
-export interface ResetAllGrantsTestMessage extends BaseMessage {
-  readonly type: 'RESET_ALL_GRANTS_TEST';
 }
 
 export interface GetTabUsageMessage extends BaseMessage {
@@ -270,6 +275,14 @@ export interface CurrentSiteState {
     readonly selectedCollectionIds: readonly string[];
     readonly collectionNames: readonly string[];
   } | null;
+  readonly sitePass?: {
+    readonly id: string;
+    readonly site: string;
+    readonly grantedAt: number;
+    readonly expiresAt: number;
+    readonly remainingSeconds: number;
+    readonly scope: SitePassScope;
+  } | null;
 }
 
 export interface MomentExportPayload {
@@ -287,7 +300,6 @@ export type MomentMessage =
   | CompleteInterventionMessage
   | CancelInterventionMessage
   | GetCapabilitiesMessage
-  | ResetAllGrantsTestMessage
   | GetTabUsageMessage
   | GetCollectionUsageMessage
   | GetCurrentSiteStateMessage
@@ -307,7 +319,8 @@ export type MomentMessage =
   | EndIntentPassMessage
   | StartFocusModeMessage
   | GetFocusModeStatusMessage
-  | EndFocusModeMessage;
+  | EndFocusModeMessage
+  | EndSitePassMessage;
 
 export interface MessageResponse<T = any> {
   readonly success: boolean;
@@ -335,7 +348,6 @@ export function isValidMessage(msg: any): msg is MomentMessage {
     case 'GET_STATE':
     case 'GET_CURRENT_TAB':
     case 'GET_CAPABILITIES':
-    case 'RESET_ALL_GRANTS_TEST':
     case 'GET_COLLECTIONS':
     case 'GET_SETTINGS':
     case 'EXPORT_DATA':
@@ -363,7 +375,9 @@ export function isValidMessage(msg: any): msg is MomentMessage {
         msg.targetUrl.length > 0 &&
         typeof msg.nonce === 'string' &&
         msg.nonce.length > 0 &&
-        (msg.intentionText === undefined || typeof msg.intentionText === 'string')
+        (msg.durationMs === undefined || (typeof msg.durationMs === 'number' && Number.isFinite(msg.durationMs))) &&
+        (msg.intentionText === undefined || typeof msg.intentionText === 'string') &&
+        (msg.unlockScope === undefined || msg.unlockScope === 'THIS_TAB_ONLY' || msg.unlockScope === 'ALL_TABS_UNTIL_EXPIRATION')
       );
 
     case 'CANCEL_INTERVENTION':
@@ -451,6 +465,13 @@ export function isValidMessage(msg: any): msg is MomentMessage {
     case 'GET_INTENT_PASS_STATUS':
     case 'END_INTENT_PASS':
       return msg.tabId === undefined || typeof msg.tabId === 'number';
+
+    case 'END_SITE_PASS':
+      return (
+        (msg.tabId === undefined || typeof msg.tabId === 'number') &&
+        (msg.passId === undefined || typeof msg.passId === 'string') &&
+        (msg.site === undefined || typeof msg.site === 'string')
+      );
 
     case 'START_FOCUS_MODE':
       return (

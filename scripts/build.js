@@ -8,7 +8,21 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const ts = require('/usr/share/code/resources/app/extensions/node_modules/typescript/lib/typescript.js');
+
+function resolveTypeScript() {
+  try {
+    return require('typescript');
+  } catch {
+    try {
+      return require('/usr/share/code/resources/app/extensions/node_modules/typescript/lib/typescript.js');
+    } catch {
+      console.error('[Error] TypeScript not found. Please install dependencies with: npm install');
+      process.exit(1);
+    }
+  }
+}
+
+const ts = resolveTypeScript();
 
 const ROOT_DIR = process.cwd();
 const SRC_DIR = path.join(ROOT_DIR, 'src');
@@ -84,6 +98,14 @@ for (const target of TARGETS) {
     console.error(`[Build] ERROR: Missing manifest for ${target} at ${manifestSrc}`);
     process.exit(1);
   }
+}
+
+// 4. Sync root manifest.json with Firefox manifest (ensures AMO source zip validator finds manifest.json at root)
+const ffManifestSrc = path.join(ROOT_DIR, 'manifest', 'firefox', 'manifest.json');
+const rootManifestDest = path.join(ROOT_DIR, 'manifest.json');
+if (fs.existsSync(ffManifestSrc)) {
+  fs.copyFileSync(ffManifestSrc, rootManifestDest);
+  console.log('[Build] Synced root manifest.json (Firefox AMO source compliance)');
 }
 
 console.log('\n[Build] SUCCESS: Distribution bundles created:');

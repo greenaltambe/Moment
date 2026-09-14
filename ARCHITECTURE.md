@@ -395,9 +395,9 @@ Phase 7.1 establishes a centralized, coherent design token architecture and fixe
 
 ### 1. Root Cause & Browser CSS Engine Discard Fix
 - **Parser Syntax Bug:** In `options.css`, a malformed selector `[data-theme="dark"], @media ...` caused standard CSS parsers (Gecko / Blink) to drop the entire `@media (prefers-color-scheme: dark)` rule block per CSS Syntax Level 3 specifications.
-- **The Fix:** Separated pure at-rule `@media (prefers-color-scheme: dark)` from attribute selectors and consolidated all token variables in [`src/ui/theme.css`](file:///home/greenaltambe/Projects/Moment/src/ui/theme.css).
+- **The Fix:** Separated pure at-rule `@media (prefers-color-scheme: dark)` from attribute selectors and consolidated all token variables in [`src/ui/theme.css`](src/ui/theme.css).
 
-### 2. Pure Theme Resolver & Synchronization Engine ([`src/ui/theme.ts`](file:///home/greenaltambe/Projects/Moment/src/ui/theme.ts))
+### 2. Pure Theme Resolver & Synchronization Engine ([`src/ui/theme.ts`](src/ui/theme.ts))
 - **Deterministic Resolution:**
   - `LIGHT`: Always resolves to `'light'`
   - `DARK`: Always resolves to `'dark'`
