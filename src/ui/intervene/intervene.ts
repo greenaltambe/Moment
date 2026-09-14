@@ -75,8 +75,14 @@ document.addEventListener('DOMContentLoaded', () => {
           requireIntentionText = res.data.requireIntentionText;
           if (res.data.openingMessage) {
             customOpeningMessage = res.data.openingMessage;
-            subtitleEl.textContent = customOpeningMessage;
-          } else if (res.data.collectionName) {
+            const openingBox = document.getElementById('openingMessageBox');
+            const openingText = document.getElementById('openingMessageText');
+            if (openingBox && openingText) {
+              openingText.textContent = customOpeningMessage;
+              openingBox.classList.remove('is-hidden');
+            }
+          }
+          if (res.data.collectionName) {
             subtitleEl.textContent = `Paused according to '${res.data.collectionName}' boundaries.`;
           }
         }

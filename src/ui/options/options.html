@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Moment Dashboard</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-16.png">
   <link rel="stylesheet" href="../theme.css">
   <link rel="stylesheet" href="options.css">
 </head>
@@ -12,7 +14,7 @@
     <!-- Sidebar Navigation -->
     <aside class="sidebar" aria-label="Main Navigation">
       <div class="brand">
-        <span class="logo-circle" aria-hidden="true"></span>
+        <img src="../../icons/icon-48.png" alt="" class="brand-icon" width="28" height="28" aria-hidden="true">
         <div class="brand-text">
           <h2>Moment</h2>
           <span class="brand-sub">Mindful Browsing</span>
@@ -36,7 +38,7 @@
 
       <div class="sidebar-footer">
         <div class="system-meta">
-          <span>Moment v0.1.0</span>
+          <span id="sidebarVersionDisplay">Moment v1.2.0</span>
           <span>Schema v3</span>
         </div>
       </div>
@@ -54,6 +56,17 @@
 
       <!-- Tab 1: Collections & Rules -->
       <section id="tab-collections" class="tab-pane active" role="tabpanel" aria-labelledby="nav-collections">
+        <!-- Today's Minimal Usage Statistics -->
+        <div id="todayUsageCard" class="usage-summary-card is-hidden" aria-label="Today's Active Usage">
+          <div class="usage-card-header">
+            <h3>Today's Active Usage</h3>
+            <span id="todayUsageDate" class="usage-date-label">Today</span>
+          </div>
+          <div id="todayUsageList" class="usage-items-grid">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
         <div class="section-toolbar">
           <p class="toolbar-text">Organize sites into collections with custom boundaries, pauses, and daily limits.</p>
           <button id="btnNewCollection" class="btn btn-primary">+ New Collection</button>
@@ -115,6 +128,22 @@
               <input type="checkbox" id="settingReducedMotion">
               <span>Reduce motion and animations</span>
             </label>
+          </div>
+
+          <!-- Temporary Unlock Scope Setting -->
+          <div class="settings-card">
+            <h3>Temporary Unlock Scope</h3>
+            <p class="card-desc">Choose how temporary browsing access applies when continuing through a mindful pause.</p>
+            <div class="radio-group" role="radiogroup" aria-label="Temporary Unlock Scope">
+              <label class="radio-option">
+                <input type="radio" name="settingUnlockScope" value="THIS_TAB_ONLY" checked>
+                <span>Current tab only (Other tabs stay restricted; closing tab revokes access)</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="settingUnlockScope" value="ALL_TABS_UNTIL_EXPIRATION">
+                <span>All tabs until expiration (Covered site remains open across tabs until cooldown ends)</span>
+              </label>
+            </div>
           </div>
 
           <!-- Private Browsing -->
@@ -190,7 +219,7 @@
             <div class="diagnostics-grid">
               <div class="diag-item">
                 <span class="diag-label">Extension Version</span>
-                <span class="diag-value" id="extensionVersionDisplay">1.1.0</span>
+                <span class="diag-value" id="extensionVersionDisplay">1.2.0</span>
               </div>
               <div class="diag-item">
                 <span class="diag-label">Manifest Specification</span>
@@ -358,54 +387,90 @@
             <input type="checkbox" id="colRequireIntention">
             <span>Require typing an intention note before access is granted</span>
           </label>
-
-          <!-- Opening / Insult Message -->
-          <div class="form-group mt-md">
-            <label class="form-label">Opening Pause Message</label>
-            <div class="radio-group" role="radiogroup" aria-label="Opening Message Mode">
-              <label class="radio-option">
-                <input type="radio" name="colOpeningMode" value="NONE" checked>
-                <span>Default Moment Pause</span>
-              </label>
-              <label class="radio-option">
-                <input type="radio" name="colOpeningMode" value="CUSTOM">
-                <span>Custom Message</span>
-              </label>
-              <label class="radio-option">
-                <input type="radio" name="colOpeningMode" value="RANDOM">
-                <span>Random Message from List</span>
-              </label>
-            </div>
-            <div id="colOpeningMessagesGroup" class="is-hidden mt-xs">
-              <textarea id="colOpeningMessagesInput" class="form-input" rows="2" placeholder="e.g. Really? You came here again?&#10;Is this aligned with your focus?&#10;Read a book instead." maxlength="1000"></textarea>
-              <span class="field-hint">Enter one message per line. In random mode, one is selected on each visit.</span>
-            </div>
-          </div>
         </div>
 
-        <!-- Block Page & Expiration Options -->
-        <div class="form-section">
-          <h3>Block Page & Expiration</h3>
-          <div class="form-group">
-            <label for="colCustomBlockMessage" class="form-label">Custom Block Message (Optional)</label>
-            <input type="text" id="colCustomBlockMessage" class="form-input" placeholder="e.g. This site is paused so you can focus." maxlength="250">
-            <span class="field-hint">Displayed on the block page when access is restricted.</span>
-          </div>
+        <!-- Progressive Disclosure: Advanced Settings -->
+        <details class="advanced-settings-drawer">
+          <summary class="advanced-settings-summary">
+            <span>Advanced Settings (Optional)</span>
+          </summary>
+          <div class="advanced-settings-body">
+            <!-- Opening / Custom Message -->
+            <div class="form-group">
+              <label class="form-label">Opening Pause Message</label>
+              <div class="radio-group" role="radiogroup" aria-label="Opening Message Mode">
+                <label class="radio-option">
+                  <input type="radio" name="colOpeningMode" value="NONE" checked>
+                  <span>None</span>
+                </label>
+                <label class="radio-option">
+                  <input type="radio" name="colOpeningMode" value="MOMENT_LIBRARY">
+                  <span>Moment's messages</span>
+                </label>
+                <label class="radio-option">
+                  <input type="radio" name="colOpeningMode" value="CUSTOM">
+                  <span>Custom</span>
+                </label>
+                <label class="radio-option">
+                  <input type="radio" name="colOpeningMode" value="RANDOM">
+                  <span>Random</span>
+                </label>
+              </div>
 
-          <div class="form-group mt-sm">
-            <label class="form-label">When Temporary Access Expires</label>
-            <div class="radio-group" role="radiogroup" aria-label="When Access Expires">
-              <label class="radio-option">
-                <input type="radio" name="colWhenExpires" value="IMMEDIATE" checked>
-                <span>Re-block immediately when pass expires (Recommended)</span>
-              </label>
-              <label class="radio-option">
-                <input type="radio" name="colWhenExpires" value="NEXT_NAV">
-                <span>Allow active page until next navigation</span>
-              </label>
+              <!-- Moment Library Intensity Selection -->
+              <div id="colMomentLibraryGroup" class="is-hidden mt-xs">
+                <label class="form-label sub-label">Message Intensity</label>
+                <div class="radio-group" role="radiogroup" aria-label="Message Intensity">
+                  <label class="radio-option">
+                    <input type="radio" name="colMessageIntensity" value="MILD" checked>
+                    <span>Mild</span>
+                  </label>
+                  <label class="radio-option">
+                    <input type="radio" name="colMessageIntensity" value="SARCASTIC">
+                    <span>Sarcastic</span>
+                  </label>
+                  <label class="radio-option">
+                    <input type="radio" name="colMessageIntensity" value="SPICY">
+                    <span>Spicy</span>
+                  </label>
+                  <label class="radio-option">
+                    <input type="radio" name="colMessageIntensity" value="BRUTAL">
+                    <span>Brutal</span>
+                  </label>
+                </div>
+                <span class="field-hint" id="colIntensityHint">Gentle interruption to prompt awareness.</span>
+              </div>
+
+              <!-- Custom / Random Messages Input -->
+              <div id="colOpeningMessagesGroup" class="is-hidden mt-xs">
+                <textarea id="colOpeningMessagesInput" class="form-input" rows="2" placeholder="e.g. Really? You came here again?&#10;Is this aligned with your focus?&#10;Read a book instead." maxlength="1000"></textarea>
+                <span class="field-hint" id="colOpeningMessagesHint">Enter one message per line. In random mode, one is selected on each visit.</span>
+              </div>
+            </div>
+
+            <!-- Custom Block Message -->
+            <div class="form-group mt-sm">
+              <label for="colCustomBlockMessage" class="form-label">Custom Block Message</label>
+              <input type="text" id="colCustomBlockMessage" class="form-input" placeholder="e.g. This site is paused so you can focus." maxlength="250">
+              <span class="field-hint">Displayed on the block page when access is restricted.</span>
+            </div>
+
+            <!-- Expiration Behavior -->
+            <div class="form-group mt-sm">
+              <label class="form-label">When Temporary Access Expires</label>
+              <div class="radio-group" role="radiogroup" aria-label="When Access Expires">
+                <label class="radio-option">
+                  <input type="radio" name="colWhenExpires" value="IMMEDIATE" checked>
+                  <span>Re-block immediately when pass expires (Recommended)</span>
+                </label>
+                <label class="radio-option">
+                  <input type="radio" name="colWhenExpires" value="NEXT_NAV">
+                  <span>Allow active page until next navigation</span>
+                </label>
+              </div>
             </div>
           </div>
-        </div>
+        </details>
 
         <div class="modal-actions">
           <button type="submit" id="btnSaveCollection" class="btn btn-primary">Save Collection</button>

@@ -42,12 +42,42 @@ body {
   background-color: var(--accent);
 }
 
+.brand-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
 .brand-title {
   font-size: 13px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
   font-weight: 600;
+}
+
+/* Opening Message / Behavioral Roast Layer */
+.opening-message-box {
+  margin: 0 0 20px 0;
+  padding: 12px 18px;
+  background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  text-align: center;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.opening-message-text {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--text-main);
+  font-style: italic;
 }
 
 .headline {
@@ -362,3 +392,19 @@ body {
 :root[data-reduced-motion="true"] .timer-progress-bar {
   transition: none !important;
 }
+
+/* Mobile Responsive Optimization */
+@media (max-width: 480px) {
+  .intervention-card {
+    padding: 24px 20px;
+    border-radius: 12px;
+  }
+  .opening-message-box {
+    padding: 10px 14px;
+    margin-bottom: 16px;
+  }
+  .opening-message-text {
+    font-size: 14px;
+  }
+}
+

@@ -5,7 +5,7 @@
  */
 
 import { TargetRuleType, Target } from '../core/models/target.js';
-import { Collection, OpeningMessageMode, WhenAccessExpires } from '../core/models/collection.js';
+import { Collection, OpeningMessageMode, MessageIntensity, WhenAccessExpires } from '../core/models/collection.js';
 import { BoundaryPolicy } from '../core/models/boundary.js';
 import { UserSettings } from '../storage/schema.js';
 
@@ -145,6 +145,7 @@ export interface CreateCollectionMessage extends BaseMessage {
   readonly boundary?: BoundaryPolicy;
   readonly customBlockMessage?: string | null;
   readonly openingMessageMode?: OpeningMessageMode;
+  readonly messageIntensity?: MessageIntensity;
   readonly openingMessages?: readonly string[];
   readonly whenAccessExpires?: WhenAccessExpires;
 }

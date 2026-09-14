@@ -5,7 +5,7 @@
  */
 
 import '../../shared/types.js';
-import { Collection, OpeningMessageMode, WhenAccessExpires } from '../../core/models/collection.js';
+import { Collection, OpeningMessageMode, MessageIntensity, WhenAccessExpires } from '../../core/models/collection.js';
 import { Target, TargetRuleType } from '../../core/models/target.js';
 import { BoundaryPolicy, ScheduleInterval } from '../../core/models/boundary.js';
 import { UserSettings } from '../../storage/schema.js';
@@ -14,6 +14,12 @@ import {
   validateTargetPattern,
   formatScheduleNaturalLanguage,
 } from '../../core/validation/rules.js';
+import {
+  formatDuration,
+  resolveCollectionLimitMs,
+  getLocalDateKey,
+  getUsageRecordKey,
+} from '../../core/usage/accounting.js';
 import { initTheme, applyTheme } from '../theme.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -58,6 +64,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const colCustomBlockMessage = document.getElementById('colCustomBlockMessage') as HTMLInputElement;
   const colOpeningMessagesGroup = document.getElementById('colOpeningMessagesGroup')!;
   const colOpeningMessagesInput = document.getElementById('colOpeningMessagesInput') as HTMLTextAreaElement;
+  const colOpeningMessagesHint = document.getElementById('colOpeningMessagesHint');
+  const colMomentLibraryGroup = document.getElementById('colMomentLibraryGroup')!;
+  const colIntensityHint = document.getElementById('colIntensityHint');
 
   // Rule Modal Elements
   const ruleModal = document.getElementById('ruleModal') as HTMLDialogElement;
@@ -93,10 +102,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const importFileInput = document.getElementById('importFileInput') as HTMLInputElement;
   const importStatusReport = document.getElementById('importStatusReport')!;
 
-  // Diagnostics
+  // Diagnostics & Sidebar
+  const sidebarVersionDisplay = document.getElementById('sidebarVersionDisplay')!;
   const extensionVersionDisplay = document.getElementById('extensionVersionDisplay')!;
   const schemaVersionDisplay = document.getElementById('schemaVersionDisplay')!;
   const storageStatusDisplay = document.getElementById('storageStatusDisplay')!;
+
+  // Usage Card Elements
+  const todayUsageCard = document.getElementById('todayUsageCard')!;
+  const todayUsageDate = document.getElementById('todayUsageDate')!;
+  const todayUsageList = document.getElementById('todayUsageList')!;
 
   // Local State Cache
   let collectionsState: Record<string, Collection> = {};
@@ -184,14 +199,76 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // --- TODAY'S USAGE STATISTICS ---
+  function renderTodayUsage(usage: Record<string, any>, cols: Record<string, Collection>) {
+    todayUsageList.replaceChildren();
+    const today = new Date();
+    const dateKey = getLocalDateKey(today);
+    todayUsageDate.textContent = today.toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+
+    const colList = Object.values(cols);
+    const activeStats: Array<{ col: Collection; usedMs: number; limitMs: number | null }> = [];
+
+    for (const col of colList) {
+      const key = getUsageRecordKey(dateKey, col.id);
+      const usedMs = usage[key]?.accumulatedMs || 0;
+      const limitMs = resolveCollectionLimitMs(col);
+      if (usedMs > 0 || limitMs !== null) {
+        activeStats.push({ col, usedMs, limitMs });
+      }
+    }
+
+    if (activeStats.length === 0) {
+      const emptyMsg = document.createElement('div');
+      emptyMsg.className = 'usage-stat-empty';
+      emptyMsg.textContent = 'No active browsing time recorded today yet. Mindful boundaries are active.';
+      todayUsageList.appendChild(emptyMsg);
+    } else {
+      for (const stat of activeStats) {
+        const chip = document.createElement('div');
+        chip.className = 'usage-stat-chip';
+
+        const dot = document.createElement('span');
+        dot.className = 'usage-stat-dot';
+        dot.style.backgroundColor = stat.col.color;
+
+        const name = document.createElement('span');
+        name.className = 'usage-stat-name';
+        name.textContent = stat.col.name;
+
+        const time = document.createElement('span');
+        time.className = 'usage-stat-time';
+        const usedStr = formatDuration(stat.usedMs);
+        if (stat.limitMs !== null) {
+          const limitStr = formatDuration(stat.limitMs);
+          time.textContent = `${usedStr} / ${limitStr}`;
+        } else {
+          time.textContent = `${usedStr} spent`;
+        }
+
+        chip.appendChild(dot);
+        chip.appendChild(name);
+        chip.appendChild(time);
+        todayUsageList.appendChild(chip);
+      }
+    }
+
+    todayUsageCard.classList.remove('is-hidden');
+  }
+
   // --- COLLECTIONS & RULES RENDERING ---
   async function loadCollections(): Promise<Record<string, Collection>> {
     return new Promise((resolve) => {
       if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
-        chrome.runtime.sendMessage({ type: 'GET_COLLECTIONS' }, (res: any) => {
+        chrome.runtime.sendMessage({ type: 'GET_STATE' }, (res: any) => {
           if (res?.success && res.data) {
-            collectionsState = res.data;
-            resolve(res.data);
+            collectionsState = res.data.collections || {};
+            renderTodayUsage(res.data.usage || {}, collectionsState);
+            resolve(collectionsState);
           } else {
             resolve({});
           }
@@ -502,11 +579,17 @@ document.addEventListener('DOMContentLoaded', () => {
     colTimerSeconds.value = String(col?.boundary?.pause?.durationSeconds || 15);
     colRequireIntention.checked = Boolean(col?.boundary?.pause?.requireIntentionText);
 
-    // Opening Message
+    // Opening Message & Intensity
     const opMode = col?.openingMessageMode || 'NONE';
     const opRadio = collectionForm.querySelector<HTMLInputElement>(`input[name="colOpeningMode"][value="${opMode}"]`);
     if (opRadio) opRadio.checked = true;
-    colOpeningMessagesGroup.classList.toggle('is-hidden', opMode === 'NONE');
+
+    const intensity = col?.messageIntensity || 'MILD';
+    const intensityRadio = collectionForm.querySelector<HTMLInputElement>(`input[name="colMessageIntensity"][value="${intensity}"]`);
+    if (intensityRadio) intensityRadio.checked = true;
+    updateIntensityHint(intensity);
+
+    updateOpeningModeUI(opMode);
     colOpeningMessagesInput.value = col?.openingMessages && col.openingMessages.length > 0 ? col.openingMessages.join('\n') : '';
 
     // Custom Block Message
@@ -589,9 +672,50 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  function updateIntensityHint(intensity: string) {
+    if (!colIntensityHint) return;
+    switch (intensity) {
+      case 'SARCASTIC':
+        colIntensityHint.textContent = 'Playful roast calling out routine excuses.';
+        break;
+      case 'SPICY':
+        colIntensityHint.textContent = 'Direct confrontation puncturing procrastination.';
+        break;
+      case 'BRUTAL':
+        colIntensityHint.textContent = 'Uncompromising behavioral callout targeting avoidance.';
+        break;
+      case 'MILD':
+      default:
+        colIntensityHint.textContent = 'Gentle interruption to prompt awareness.';
+        break;
+    }
+  }
+
+  function updateOpeningModeUI(mode: string) {
+    colMomentLibraryGroup.classList.toggle('is-hidden', mode !== 'MOMENT_LIBRARY');
+    colOpeningMessagesGroup.classList.toggle('is-hidden', mode !== 'CUSTOM' && mode !== 'RANDOM');
+    if (colOpeningMessagesHint) {
+      if (mode === 'CUSTOM') {
+        colOpeningMessagesHint.textContent = 'Enter your custom message.';
+      } else {
+        colOpeningMessagesHint.textContent = 'Enter one message per line. In random mode, one is selected on each visit.';
+      }
+    }
+  }
+
   collectionForm.querySelectorAll<HTMLInputElement>('input[name="colOpeningMode"]').forEach((radio) => {
     radio.addEventListener('change', () => {
-      colOpeningMessagesGroup.classList.toggle('is-hidden', radio.value === 'NONE' && radio.checked);
+      if (radio.checked) {
+        updateOpeningModeUI(radio.value);
+      }
+    });
+  });
+
+  collectionForm.querySelectorAll<HTMLInputElement>('input[name="colMessageIntensity"]').forEach((radio) => {
+    radio.addEventListener('change', () => {
+      if (radio.checked) {
+        updateIntensityHint(radio.value);
+      }
     });
   });
 
@@ -667,9 +791,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const finalDurationSeconds = isStrict ? 0 : durationSeconds;
     const finalRequireIntention = isStrict ? false : colRequireIntention.checked;
 
-    // Opening Message
+    // Opening Message & Intensity
     const opModeInput = collectionForm.querySelector<HTMLInputElement>('input[name="colOpeningMode"]:checked');
     const opMode = (opModeInput?.value || 'NONE') as OpeningMessageMode;
+    const intensityInput = collectionForm.querySelector<HTMLInputElement>('input[name="colMessageIntensity"]:checked');
+    const messageIntensity = (intensityInput?.value || 'MILD') as MessageIntensity;
     const rawOpeningText = colOpeningMessagesInput.value || '';
     const openingMessages = rawOpeningText
       .split('\n')
@@ -728,6 +854,7 @@ document.addEventListener('DOMContentLoaded', () => {
             boundary,
             customBlockMessage,
             openingMessageMode: opMode,
+            messageIntensity,
             openingMessages,
             whenAccessExpires,
           },
@@ -751,6 +878,7 @@ document.addEventListener('DOMContentLoaded', () => {
           boundary,
           customBlockMessage,
           openingMessageMode: opMode,
+          messageIntensity,
           openingMessages,
           whenAccessExpires,
         }, resolve);
@@ -999,6 +1127,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const timeRadio = tabSettings.querySelector<HTMLInputElement>(`input[name="settingTimeFormat"][value="${settings.timeFormat}"]`);
           if (timeRadio) timeRadio.checked = true;
 
+          const unlockRadio = tabSettings.querySelector<HTMLInputElement>(`input[name="settingUnlockScope"][value="${settings.temporaryUnlockScope || 'THIS_TAB_ONLY'}"]`);
+          if (unlockRadio) unlockRadio.checked = true;
+
           settingReducedMotion.checked = Boolean(settings.reducedMotion);
         }
       });
@@ -1015,9 +1146,11 @@ document.addEventListener('DOMContentLoaded', () => {
   btnSaveSettings.addEventListener('click', async () => {
     const themeInput = tabSettings.querySelector<HTMLInputElement>('input[name="settingTheme"]:checked');
     const timeInput = tabSettings.querySelector<HTMLInputElement>('input[name="settingTimeFormat"]:checked');
+    const unlockInput = tabSettings.querySelector<HTMLInputElement>('input[name="settingUnlockScope"]:checked');
 
     const theme = (themeInput?.value || 'system') as 'system' | 'light' | 'dark' | 'sepia';
     const timeFormat = (timeInput?.value || '24h') as '12h' | '24h';
+    const temporaryUnlockScope = (unlockInput?.value || 'THIS_TAB_ONLY') as 'THIS_TAB_ONLY' | 'ALL_TABS_UNTIL_EXPIRATION';
     const reducedMotion = settingReducedMotion.checked;
 
     const res: any = await new Promise((resolve) => {
@@ -1027,6 +1160,7 @@ document.addEventListener('DOMContentLoaded', () => {
           theme,
           timeFormat,
           reducedMotion,
+          temporaryUnlockScope,
         },
       }, resolve);
     });
@@ -1151,6 +1285,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const manifest = chrome.runtime.getManifest();
     if (manifest?.version) {
       extensionVersionDisplay.textContent = manifest.version;
+      sidebarVersionDisplay.textContent = `Moment v${manifest.version}`;
     }
   }
 
@@ -1173,6 +1308,17 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 150);
     }
   });
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      const active = document.activeElement as HTMLElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) {
+        setTimeout(() => {
+          active.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    });
+  }
 
   // --- INITIAL BOOT ---
   loadSettings();

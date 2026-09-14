@@ -4,15 +4,22 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Moment Pause</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-16.png">
   <link rel="stylesheet" href="../theme.css">
   <link rel="stylesheet" href="intervene.css">
 </head>
 <body>
   <main class="intervention-card" role="region" aria-label="Moment Pause">
     <header class="brand-row">
-      <span class="logo-circle" aria-hidden="true"></span>
+      <img src="../../icons/icon-48.png" alt="" class="brand-icon" width="22" height="22" aria-hidden="true">
       <span class="brand-title">Moment</span>
     </header>
+
+    <!-- Dedicated Behavioral Opening Message Layer -->
+    <div id="openingMessageBox" class="opening-message-box is-hidden" role="note" aria-label="Pause message">
+      <p id="openingMessageText" class="opening-message-text"></p>
+    </div>
 
     <h1 id="interventionHeadline" class="headline">Take a breath...</h1>
     <p id="interventionSubtitle" class="subtitle">Creating a moment between impulse and action.</p>

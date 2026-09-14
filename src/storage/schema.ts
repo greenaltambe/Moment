@@ -18,6 +18,7 @@ export interface UserSettings {
   readonly timeFormat: '12h' | '24h';
   readonly reducedMotion: boolean;
   readonly allowPrivateBrowsing: boolean;
+  readonly temporaryUnlockScope: 'THIS_TAB_ONLY' | 'ALL_TABS_UNTIL_EXPIRATION';
 }
 
 export type PendingInterventionState = PendingIntervention;
@@ -44,6 +45,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   timeFormat: '24h',
   reducedMotion: false,
   allowPrivateBrowsing: false,
+  temporaryUnlockScope: 'THIS_TAB_ONLY',
 };
 
 export const DEFAULT_STORAGE_STATE: MomentStorageEnvelope = {

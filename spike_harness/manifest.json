@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Moment Intervention Spike Harness",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Disposable test harness for intervention routing validation",
   "browser_specific_settings": {
     "gecko": {

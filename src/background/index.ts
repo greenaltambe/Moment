@@ -33,6 +33,7 @@ import {
   canTransition,
   isInterventionExpired,
   transitionIntervention,
+  getRandomLibraryMessage,
 } from '../core/interventions/index.js';
 import { ActiveTimeTracker } from './tracker.js';
 import { getLocalDateKey, validateDailyLimit } from '../core/usage/accounting.js';
@@ -46,6 +47,7 @@ import {
   validateImportPayload,
   validateCustomBlockMessage,
   validateOpeningMessages,
+  validateMessageIntensity,
   validateWhenAccessExpires,
 } from '../core/validation/rules.js';
 
@@ -167,6 +169,8 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
         ) {
           const randomIndex = Math.floor(Math.random() * collection.openingMessages.length);
           openingMessage = collection.openingMessages[randomIndex];
+        } else if (collection.openingMessageMode === 'MOMENT_LIBRARY') {
+          openingMessage = getRandomLibraryMessage(collection.messageIntensity);
         }
       }
 
@@ -298,12 +302,14 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
         const siteScope = resolveSiteScope(normalizedTargetUrl, matchedRule);
 
         if (siteScope) {
+          const unlockScope = draft.settings?.temporaryUnlockScope || 'THIS_TAB_ONLY';
           const sitePass: SitePass = {
             id: `pass_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
             tabId,
             site: siteScope,
             grantedAt: now,
             expiresAt: now + DEFAULT_SITE_PASS_DURATION_MS,
+            scope: unlockScope,
           };
           if (!draft.runtime.sitePasses) {
             draft.runtime.sitePasses = {};
@@ -571,6 +577,7 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
       const limitMs = message.dailyLimitMs !== undefined ? validateDailyLimit(message.dailyLimitMs) : null;
       const blockMsgVal = validateCustomBlockMessage(message.customBlockMessage);
       const openingVal = validateOpeningMessages(message.openingMessageMode, message.openingMessages);
+      const intensityVal = validateMessageIntensity(message.messageIntensity);
       const whenExpires = validateWhenAccessExpires(message.whenAccessExpires);
 
       const collectionId = `col_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -593,6 +600,7 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
         },
         customBlockMessage: blockMsgVal.valid ? blockMsgVal.sanitized ?? null : null,
         openingMessageMode: openingVal.mode,
+        messageIntensity: intensityVal,
         openingMessages: openingVal.messages,
         whenAccessExpires: whenExpires,
       };
@@ -636,6 +644,10 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
         );
         sanitizedUpdates.openingMessageMode = openingVal.mode;
         sanitizedUpdates.openingMessages = openingVal.messages;
+      }
+
+      if (sanitizedUpdates.messageIntensity !== undefined) {
+        sanitizedUpdates.messageIntensity = validateMessageIntensity(sanitizedUpdates.messageIntensity);
       }
 
       if (sanitizedUpdates.whenAccessExpires !== undefined) {
@@ -1247,6 +1259,27 @@ function schedulePassExpiration(tabId: number, passType: 'INTENT_PASS' | 'SITE_P
   }
 }
 
+function findValidSitePass(
+  sitePasses: Record<string, SitePass> | undefined,
+  tabId: number,
+  url: string,
+  now: number
+): SitePass | null {
+  if (!sitePasses) return null;
+  const directPass = sitePasses[String(tabId)];
+  if (directPass && isSitePassValidForNavigation(directPass, tabId, url, now)) {
+    return directPass;
+  }
+  for (const pass of Object.values(sitePasses)) {
+    if (pass && pass.scope === 'ALL_TABS_UNTIL_EXPIRATION') {
+      if (isSitePassValidForNavigation(pass, tabId, url, now)) {
+        return pass;
+      }
+    }
+  }
+  return null;
+}
+
 async function checkPassExpiration(tabId: number): Promise<void> {
   try {
     const state = await storage.getState();
@@ -1262,18 +1295,41 @@ async function checkPassExpiration(tabId: number): Promise<void> {
       return;
     }
 
-    // Inspect the tab
+    // Inspect the originating tab
     const tab = await adapter.getTab(tabId);
+
+    // Prune the expired pass(es) from storage atomically
+    await storage.updateState((draft) => {
+      if (isIntentExpired && draft.runtime.intentPasses?.[key]?.id === intentPass?.id) {
+        delete draft.runtime.intentPasses[key];
+      }
+      if (isSiteExpired && draft.runtime.sitePasses?.[key]?.id === sitePass?.id) {
+        delete draft.runtime.sitePasses[key];
+      }
+    });
+
+    // If ALL_TABS_UNTIL_EXPIRATION SitePass expired: check all open tabs on the covered site
+    if (sitePass && sitePass.scope === 'ALL_TABS_UNTIL_EXPIRATION' && isSiteExpired) {
+      const allTabs = await adapter.getAllTabs();
+      for (const openTab of allTabs) {
+        if (openTab.url && (openTab.url.startsWith('http://') || openTab.url.startsWith('https://'))) {
+          if (isSitePassValidForNavigation(sitePass, openTab.id, openTab.url, sitePass.expiresAt - 1)) {
+            const matchingCol = engine.resolveMatchingCollection(
+              openTab.url,
+              now,
+              state.collections,
+              state.runtime.focusSession
+            );
+            if (matchingCol && (matchingCol.whenAccessExpires || 'IMMEDIATE') === 'IMMEDIATE') {
+              await evaluateAndEnforceNavigation(openTab.id, openTab.url, 'COMMITTED');
+            }
+          }
+        }
+      }
+      return;
+    }
+
     if (!tab || !tab.url || (!tab.url.startsWith('http://') && !tab.url.startsWith('https://'))) {
-      // Tab closed or not on web URL -> prune expired passes
-      await storage.updateState((draft) => {
-        if (isIntentExpired && draft.runtime.intentPasses?.[key]?.id === intentPass?.id) {
-          delete draft.runtime.intentPasses[key];
-        }
-        if (isSiteExpired && draft.runtime.sitePasses?.[key]?.id === sitePass?.id) {
-          delete draft.runtime.sitePasses[key];
-        }
-      });
       return;
     }
 
@@ -1284,16 +1340,6 @@ async function checkPassExpiration(tabId: number): Promise<void> {
       state.collections,
       state.runtime.focusSession
     );
-
-    // Prune the expired pass(es) first
-    await storage.updateState((draft) => {
-      if (isIntentExpired && draft.runtime.intentPasses?.[key]?.id === intentPass?.id) {
-        delete draft.runtime.intentPasses[key];
-      }
-      if (isSiteExpired && draft.runtime.sitePasses?.[key]?.id === sitePass?.id) {
-        delete draft.runtime.sitePasses[key];
-      }
-    });
 
     if (matchingCol) {
       const whenExpires = matchingCol.whenAccessExpires || 'IMMEDIATE';
@@ -1364,19 +1410,21 @@ async function evaluateAndEnforceNavigation(
       }
     }
 
-    // Step 4: Check SitePass for tab + site post-intervention cooldown
-    const sitePass = state.runtime.sitePasses?.[key];
-    if (sitePass) {
-      if (isSitePassValidForNavigation(sitePass, tabId, url, now)) {
-        return true;
-      } else if (now >= sitePass.expiresAt) {
-        await storage.updateState((draft) => {
-          const p = draft.runtime.sitePasses?.[key];
-          if (p && p.id === sitePass.id) {
-            delete draft.runtime.sitePasses[key];
-          }
-        });
-      }
+    // Step 4: Check SitePass for tab + site post-intervention cooldown (including cross-tab if enabled)
+    const validSitePass = findValidSitePass(state.runtime.sitePasses, tabId, url, now);
+    if (validSitePass) {
+      return true;
+    }
+
+    // Prune direct tab pass if expired
+    const directSitePass = state.runtime.sitePasses?.[key];
+    if (directSitePass && now >= directSitePass.expiresAt) {
+      await storage.updateState((draft) => {
+        const p = draft.runtime.sitePasses?.[key];
+        if (p && p.id === directSitePass.id) {
+          delete draft.runtime.sitePasses[key];
+        }
+      });
     }
 
     // Step 5: Core policy engine evaluation
@@ -1591,7 +1639,12 @@ adapter.onTabRemoved(async (tabId) => {
       delete draft.runtime.pendingInterventions[key];
       delete draft.runtime.temporaryAccessGrants[key];
       if (draft.runtime.sitePasses) {
-        delete draft.runtime.sitePasses[key];
+        const pass = draft.runtime.sitePasses[key];
+        if (pass && pass.scope === 'ALL_TABS_UNTIL_EXPIRATION') {
+          // Retain cross-tab site unlock until its natural expiration timestamp
+        } else {
+          delete draft.runtime.sitePasses[key];
+        }
       }
       if (draft.runtime.intentPasses) {
         delete draft.runtime.intentPasses[key];

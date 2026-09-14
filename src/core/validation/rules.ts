@@ -5,7 +5,7 @@
 
 import { TargetRuleType } from '../models/target.js';
 import { ScheduleConfig, BoundaryPolicy, ScheduleInterval } from '../models/boundary.js';
-import { OpeningMessageMode, WhenAccessExpires } from '../models/collection.js';
+import { OpeningMessageMode, MessageIntensity, WhenAccessExpires } from '../models/collection.js';
 import { validateGlobPattern } from '../matching/glob.js';
 import { MomentExportPayload } from '../../shared/messages.js';
 import { CURRENT_SCHEMA_VERSION } from '../../storage/schema.js';
@@ -65,7 +65,7 @@ export function validateOpeningMessages(
   rawMode: unknown,
   rawMsgs: unknown
 ): { mode: OpeningMessageMode; messages: string[] } {
-  const validModes: OpeningMessageMode[] = ['NONE', 'CUSTOM', 'RANDOM'];
+  const validModes: OpeningMessageMode[] = ['NONE', 'CUSTOM', 'RANDOM', 'MOMENT_LIBRARY'];
   const mode: OpeningMessageMode = typeof rawMode === 'string' && validModes.includes(rawMode as OpeningMessageMode)
     ? (rawMode as OpeningMessageMode)
     : 'NONE';
@@ -83,6 +83,18 @@ export function validateOpeningMessages(
   }
 
   return { mode, messages };
+}
+
+/**
+ * Validates messageIntensity setting.
+ * Safe fallback to 'MILD' if invalid or unassigned.
+ */
+export function validateMessageIntensity(rawIntensity: unknown): MessageIntensity {
+  const validIntensities: MessageIntensity[] = ['MILD', 'SARCASTIC', 'SPICY', 'BRUTAL'];
+  if (typeof rawIntensity === 'string' && validIntensities.includes(rawIntensity as MessageIntensity)) {
+    return rawIntensity as MessageIntensity;
+  }
+  return 'MILD';
 }
 
 /**
@@ -494,6 +506,7 @@ export function validateImportPayload(
     const validatedLimit = col.dailyLimitMs !== undefined ? validateDailyLimit(col.dailyLimitMs) : null;
     const blockMsgVal = validateCustomBlockMessage(col.customBlockMessage);
     const openingVal = validateOpeningMessages(col.openingMessageMode, col.openingMessages);
+    const intensityVal = validateMessageIntensity(col.messageIntensity);
     const whenExpires = validateWhenAccessExpires(col.whenAccessExpires);
 
     sanitizedCollections[colId] = {
@@ -509,6 +522,7 @@ export function validateImportPayload(
       boundary: sanitizeImportedBoundary(col.boundary),
       customBlockMessage: blockMsgVal.valid ? blockMsgVal.sanitized ?? null : null,
       openingMessageMode: openingVal.mode,
+      messageIntensity: intensityVal,
       openingMessages: openingVal.messages,
       whenAccessExpires: whenExpires,
     };
@@ -523,6 +537,9 @@ export function validateImportPayload(
       : '24h',
     reducedMotion: Boolean(payload.settings?.reducedMotion),
     allowPrivateBrowsing: Boolean(payload.settings?.allowPrivateBrowsing),
+    temporaryUnlockScope: ['THIS_TAB_ONLY', 'ALL_TABS_UNTIL_EXPIRATION'].includes(payload.settings?.temporaryUnlockScope)
+      ? payload.settings.temporaryUnlockScope
+      : 'THIS_TAB_ONLY',
   };
 
   return {

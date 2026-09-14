@@ -32,8 +32,11 @@ function sanitizeSettings(rawSettings: unknown): UserSettings {
   const allowPrivateBrowsing = typeof rawSettings.allowPrivateBrowsing === 'boolean'
     ? rawSettings.allowPrivateBrowsing
     : DEFAULT_USER_SETTINGS.allowPrivateBrowsing;
+  const temporaryUnlockScope = ['THIS_TAB_ONLY', 'ALL_TABS_UNTIL_EXPIRATION'].includes(rawSettings.temporaryUnlockScope)
+    ? rawSettings.temporaryUnlockScope
+    : DEFAULT_USER_SETTINGS.temporaryUnlockScope;
 
-  return { theme, timeFormat, reducedMotion, allowPrivateBrowsing };
+  return { theme, timeFormat, reducedMotion, allowPrivateBrowsing, temporaryUnlockScope };
 }
 
 /**
@@ -81,9 +84,12 @@ function sanitizeCollections(rawCollections: unknown): Record<string, Collection
         typeof rawCol.customBlockMessage === 'string' && rawCol.customBlockMessage.trim().length > 0
           ? rawCol.customBlockMessage.trim().slice(0, 250)
           : null,
-      openingMessageMode: ['NONE', 'CUSTOM', 'RANDOM'].includes(rawCol.openingMessageMode)
+      openingMessageMode: ['NONE', 'CUSTOM', 'RANDOM', 'MOMENT_LIBRARY'].includes(rawCol.openingMessageMode)
         ? rawCol.openingMessageMode
         : 'NONE',
+      messageIntensity: ['MILD', 'SARCASTIC', 'SPICY', 'BRUTAL'].includes(rawCol.messageIntensity)
+        ? rawCol.messageIntensity
+        : 'MILD',
       openingMessages: Array.isArray(rawCol.openingMessages)
         ? rawCol.openingMessages
             .filter((m: any) => typeof m === 'string' && m.trim().length > 0)

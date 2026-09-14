@@ -77,7 +77,8 @@ export function isSitePassValidForNavigation(
   now: number = Date.now()
 ): boolean {
   if (!pass) return false;
-  if (typeof pass.tabId !== 'number' || pass.tabId !== tabId) return false;
+  if (typeof pass.tabId !== 'number') return false;
+  if (pass.scope !== 'ALL_TABS_UNTIL_EXPIRATION' && pass.tabId !== tabId) return false;
   if (!pass.site || typeof pass.site !== 'string') return false;
   if (typeof pass.grantedAt !== 'number' || typeof pass.expiresAt !== 'number') return false;
   if (pass.grantedAt >= pass.expiresAt) return false;
