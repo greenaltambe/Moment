@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Moment</title>
+  <link rel="stylesheet" href="../theme.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="popup-header">
+      <div class="brand">
+        <span class="logo-circle" aria-hidden="true"></span>
+        <h1>Moment</h1>
+      </div>
+      <span id="siteStatusBadge" class="status-badge status-unconfigured" aria-live="polite">Checking...</span>
+    </header>
+
+    <main class="popup-main">
+      <!-- Current Site Status Card -->
+      <section class="current-site-card" aria-label="Current website status">
+        <div class="site-card-header">
+          <span class="label">Current Location</span>
+        </div>
+        <div id="siteDisplay" class="site-host">Detecting tab...</div>
+        <div id="collectionRuleIndicator" class="site-meta">Not in Moment</div>
+      </section>
+
+      <!-- Focus Mode Active Card -->
+      <section id="focusModeActiveCard" class="focus-mode-card is-hidden" aria-label="Active Focus Mode" aria-live="polite">
+        <div class="focus-mode-header">
+          <span class="focus-mode-badge">Focus Active</span>
+          <span id="focusModeCountdown" class="focus-mode-timer">30m remaining</span>
+        </div>
+        <p id="focusModeScopeText" class="focus-mode-scope">Focusing on selected collections</p>
+        <button id="btnEndFocus" class="btn btn-sm btn-outline-danger" type="button">
+          End Focus
+        </button>
+      </section>
+
+      <!-- Intent Pass Active Card -->
+      <section id="intentPassCard" class="intent-pass-card is-hidden" aria-label="Active Intent Pass" aria-live="polite">
+        <div class="intent-pass-header">
+          <span class="intent-pass-badge">Intent Pass Active</span>
+          <span id="intentPassCountdown" class="intent-pass-timer">15m remaining</span>
+        </div>
+        <p id="intentPassScopeText" class="intent-pass-scope">Temporary access active</p>
+        <button id="btnEndIntentPass" class="btn btn-sm btn-outline-danger" type="button">
+          End Intent Pass
+        </button>
+      </section>
+
+      <!-- Active Tab Usage Card -->
+      <section id="usageCard" class="usage-card is-hidden" aria-label="Usage and time limits" aria-live="polite">
+        <div class="usage-header">
+          <span class="label" id="usageCollectionLabel">Collection Usage</span>
+          <span id="usageBadge" class="usage-badge">Active</span>
+        </div>
+        <div class="usage-body">
+          <div class="usage-stat">
+            <span class="usage-value" id="usageTimeSpent">0m</span>
+            <span class="usage-sublabel">spent today</span>
+          </div>
+          <div class="usage-divider is-hidden" id="usageDivider"></div>
+          <div class="usage-stat is-hidden" id="usageRemainingContainer">
+            <span class="usage-value" id="usageTimeRemaining">0m</span>
+            <span class="usage-sublabel">remaining</span>
+          </div>
+        </div>
+        <div id="usageProgressBarContainer" class="usage-progress-container is-hidden" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+          <div id="usageProgressBar" class="usage-progress-bar"></div>
+        </div>
+        <div id="usageLimitNotice" class="usage-limit-notice is-hidden">
+          Daily limit reached for today.
+        </div>
+      </section>
+
+      <!-- Focus Mode Setup Section -->
+      <section id="focusModeSection" class="focus-mode-section" aria-label="Focus mode controls">
+        <div id="focusModeControls">
+          <button id="btnOpenFocusSetup" class="btn btn-secondary" type="button" aria-expanded="false" aria-controls="focusSetupDrawer">
+            Start Focus Session
+          </button>
+        </div>
+
+        <!-- Focus Setup Drawer -->
+        <div id="focusSetupDrawer" class="focus-setup-drawer is-hidden" aria-hidden="true">
+          <form id="focusSetupForm" class="focus-setup-form" novalidate>
+            <div class="drawer-header">
+              <h2 class="drawer-title">Start Focus Session</h2>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Duration</label>
+              <div class="focus-duration-group" role="radiogroup" aria-label="Focus session duration">
+                <label class="focus-duration-pill">
+                  <input type="radio" name="focusDuration" value="900000">
+                  <span>15m</span>
+                </label>
+                <label class="focus-duration-pill">
+                  <input type="radio" name="focusDuration" value="1800000" checked>
+                  <span>30m</span>
+                </label>
+                <label class="focus-duration-pill">
+                  <input type="radio" name="focusDuration" value="3600000">
+                  <span>60m</span>
+                </label>
+                <label class="focus-duration-pill">
+                  <input type="radio" name="focusDuration" value="5400000">
+                  <span>90m</span>
+                </label>
+                <label class="focus-duration-pill">
+                  <input type="radio" name="focusDuration" value="7200000">
+                  <span>120m</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Active Collections</label>
+              <div id="focusCollectionsList" class="focus-collections-list" role="group" aria-label="Collections to restrict during focus">
+                <!-- Checkboxes populated dynamically -->
+              </div>
+            </div>
+
+            <div class="drawer-actions">
+              <button type="submit" id="btnStartFocus" class="btn btn-primary">Start Focus</button>
+              <button type="button" id="btnCancelFocus" class="btn btn-ghost">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- Primary Action: Add or Edit/Remove -->
+      <section class="actions-section" aria-label="Site actions">
+        <div id="unconfiguredActions">
+          <button id="btnOpenQuickAdd" class="btn btn-primary" aria-expanded="false" aria-controls="quickAddDrawer">
+            + Add to Moment
+          </button>
+        </div>
+
+        <div id="configuredActions" class="actions-row is-hidden">
+          <button id="btnEditRule" class="btn btn-secondary">Edit in Dashboard</button>
+          <button id="btnRemoveRule" class="btn btn-outline-danger">Remove Rule</button>
+        </div>
+      </section>
+
+      <!-- Progressive Disclosure Quick-Add Drawer -->
+      <section id="quickAddDrawer" class="quick-add-drawer is-hidden" aria-hidden="true">
+        <form id="quickAddForm" class="quick-add-form" novalidate>
+          <div class="drawer-header">
+            <h2 class="drawer-title">Add to Moment</h2>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Target Pattern</label>
+            <div id="quickAddPatternPreview" class="pattern-preview">example.com</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Scope</label>
+            <div class="radio-group" role="radiogroup">
+              <label class="radio-option">
+                <input type="radio" name="quickAddMode" value="WEBSITE" checked>
+                <span>Entire Website</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="quickAddMode" value="EXACT_PAGE">
+                <span>This Exact Page Only</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="quickAddCollectionSelect" class="form-label">Collection</label>
+            <select id="quickAddCollectionSelect" class="form-select">
+              <option value="__NEW__">+ Create New Collection...</option>
+            </select>
+          </div>
+
+          <div id="newCollectionGroup" class="form-group">
+            <label for="newCollectionNameInput" class="form-label">Collection Name</label>
+            <input type="text" id="newCollectionNameInput" class="form-input" placeholder="e.g. Focus or Social Media" maxlength="64" value="Focus">
+          </div>
+
+          <div class="drawer-actions">
+            <button type="submit" id="btnSubmitQuickAdd" class="btn btn-primary">Save Site</button>
+            <button type="button" id="btnCancelQuickAdd" class="btn btn-ghost">Cancel</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Status Notification Message -->
+      <div id="statusMsg" class="status-msg" role="status" aria-live="polite"></div>
+    </main>
+
+    <footer class="popup-footer">
+      <a id="linkDashboard" href="#" class="footer-link">Open Dashboard</a>
+    </footer>
+  </div>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

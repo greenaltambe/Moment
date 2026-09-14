@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Moment Pause</title>
+  <link rel="stylesheet" href="../theme.css">
+  <link rel="stylesheet" href="intervene.css">
+</head>
+<body>
+  <main class="intervention-card" role="region" aria-label="Moment Pause">
+    <header class="brand-row">
+      <span class="logo-circle" aria-hidden="true"></span>
+      <span class="brand-title">Moment</span>
+    </header>
+
+    <h1 id="interventionHeadline" class="headline">Take a breath...</h1>
+    <p id="interventionSubtitle" class="subtitle">Creating a moment between impulse and action.</p>
+
+    <!-- Dynamic Intervention Surface Area -->
+    <div id="interventionArea" class="intervention-surface">
+      <!-- Breathing Visual / Pacer -->
+      <div id="breathePacer" class="breathe-container is-hidden" aria-hidden="true">
+        <div id="breatheCircle" class="breathe-circle"></div>
+      </div>
+      <div id="breathePhaseText" class="breathe-phase-text is-hidden" role="status" aria-live="polite">
+        Breathe in...
+      </div>
+
+      <!-- Timer Display -->
+      <div id="timerContainer" class="timer-container is-hidden">
+        <div id="timerDisplay" class="timer-display" role="status" aria-live="polite">5s</div>
+        <div class="timer-progress-track">
+          <div id="timerProgressBar" class="timer-progress-bar"></div>
+        </div>
+      </div>
+
+      <!-- Intention Text Input (Conditional) -->
+      <div id="intentionBox" class="intention-box is-hidden">
+        <label for="intentionText" class="dest-label">Your Intention</label>
+        <textarea id="intentionText" class="intention-input" placeholder="What is your purpose for visiting this site right now?" rows="2"></textarea>
+      </div>
+    </div>
+
+    <!-- Destination Preview -->
+    <div class="destination-preview">
+      <span class="dest-label">Destination</span>
+      <div id="destUrl" class="dest-value" tabindex="0">Loading destination...</div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="actions">
+      <button id="btnComplete" class="btn btn-primary" disabled aria-disabled="true">Continue</button>
+      <button id="btnCancel" class="btn btn-secondary">Turn Back</button>
+    </div>
+
+    <!-- Intent Pass Option -->
+    <section class="intent-pass-section" aria-label="Temporary Intent Pass">
+      <button id="btnToggleIntentPass" class="intent-pass-toggle" type="button" aria-expanded="false" aria-controls="intentPassOptions">
+        Need access right now?
+      </button>
+      <div id="intentPassOptions" class="intent-pass-options is-hidden">
+        <p class="intent-pass-description">Choose how long you intentionally need this site:</p>
+        <div class="intent-pass-buttons" role="group" aria-label="Intent Pass Durations">
+          <button type="button" class="btn-intent-duration" data-duration="300000" aria-label="Intent Pass for 5 minutes">5 min</button>
+          <button type="button" class="btn-intent-duration" data-duration="900000" aria-label="Intent Pass for 15 minutes">15 min</button>
+          <button type="button" class="btn-intent-duration" data-duration="1800000" aria-label="Intent Pass for 30 minutes">30 min</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Accessible Status Message -->
+    <div id="statusMsg" class="status-msg" role="status" aria-live="polite"></div>
+  </main>
+
+  <script type="module" src="intervene.js"></script>
+</body>
+</html>

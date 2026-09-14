@@ -1,0 +1,292 @@
+/**
+ * Moment Design System — Central Theme Tokens
+ * Defines semantic color tokens, native color-scheme declarations,
+ * and high-contrast accessible palettes for Light, Dark, and Sepia themes.
+ */
+
+/* ==========================================================================
+   1. Default Light Theme (Base Tokens)
+   ========================================================================== */
+:root {
+  color-scheme: light dark;
+
+  /* Surfaces & Backgrounds */
+  --bg-main: #f8fafc;
+  --bg-sidebar: #ffffff;
+  --card-bg: #ffffff;
+  --elevated-bg: #f1f5f9;
+  --modal-backdrop: rgba(15, 23, 42, 0.45);
+
+  /* Typography */
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+
+  /* Borders & Dividers */
+  --border: #e2e8f0;
+  --border-focus: #15803d;
+
+  /* Inputs & Form Controls */
+  --input-bg: #f8fafc;
+  --input-border: #cbd5e1;
+
+  /* Brand & Accents */
+  --accent: #15803d;
+  --accent-hover: #166534;
+  --accent-light: #f0fdf4;
+
+  /* Status Colors */
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --danger-light: #fef2f2;
+  --warning: #b45309;
+  --warning-light: #fffbeb;
+  --info: #0369a1;
+  --info-light: #f0f9ff;
+
+  /* Accessibility & Controls */
+  --focus-ring: #2563eb;
+  --radius: 8px;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+
+  /* Component Badges */
+  --badge-neutral-bg: #e2e8f0;
+  --badge-neutral-text: #475569;
+  --focus-badge-bg: #f5f3ff;
+  --focus-badge-color: #7c3aed;
+  --focus-border: #ddd6fe;
+  --intent-badge-bg: #eef2ff;
+  --intent-badge-color: #4f46e5;
+  --intent-border: #c7d2fe;
+
+  /* Cross-surface Compatibility Aliases */
+  --bg-color: var(--bg-main);
+  --bg: var(--bg-main);
+}
+
+/* ==========================================================================
+   2. Explicit Light Theme Override
+   Forces light appearance even if the operating system prefers dark.
+   ========================================================================== */
+:root[data-theme="light"],
+:root[data-effective-theme="light"] {
+  color-scheme: light;
+
+  --bg-main: #f8fafc;
+  --bg-sidebar: #ffffff;
+  --card-bg: #ffffff;
+  --elevated-bg: #f1f5f9;
+  --modal-backdrop: rgba(15, 23, 42, 0.45);
+
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+
+  --border: #e2e8f0;
+  --border-focus: #15803d;
+
+  --input-bg: #f8fafc;
+  --input-border: #cbd5e1;
+
+  --accent: #15803d;
+  --accent-hover: #166534;
+  --accent-light: #f0fdf4;
+
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --danger-light: #fef2f2;
+  --warning: #b45309;
+  --warning-light: #fffbeb;
+  --info: #0369a1;
+  --info-light: #f0f9ff;
+
+  --focus-ring: #2563eb;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+
+  --badge-neutral-bg: #e2e8f0;
+  --badge-neutral-text: #475569;
+  --focus-badge-bg: #f5f3ff;
+  --focus-badge-color: #7c3aed;
+  --focus-border: #ddd6fe;
+  --intent-badge-bg: #eef2ff;
+  --intent-badge-color: #4f46e5;
+  --intent-border: #c7d2fe;
+
+  --bg-color: var(--bg-main);
+  --bg: var(--bg-main);
+}
+
+/* ==========================================================================
+   3. Dark Theme Tokens
+   High-contrast, calm dark theme exceeding WCAG AAA/AA contrast guidelines.
+   ========================================================================== */
+:root[data-theme="dark"],
+:root[data-effective-theme="dark"] {
+  color-scheme: dark;
+
+  /* Surfaces & Backgrounds */
+  --bg-main: #0f172a;
+  --bg-sidebar: #1e293b;
+  --card-bg: #1e293b;
+  --elevated-bg: #273549;
+  --modal-backdrop: rgba(0, 0, 0, 0.7);
+
+  /* Typography (14.5:1 on card-bg, 18.2:1 on bg-main) */
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8; /* 5.4:1 contrast on card-bg */
+
+  /* Borders & Dividers */
+  --border: #334155;
+  --border-focus: #22c55e;
+
+  /* Inputs & Form Controls */
+  --input-bg: #0f172a;
+  --input-border: #475569;
+
+  /* Brand & Accents (7.2:1 contrast on card-bg) */
+  --accent: #22c55e;
+  --accent-hover: #16a34a;
+  --accent-light: rgba(34, 197, 94, 0.15);
+
+  /* Status Colors */
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+  --danger-light: rgba(239, 68, 68, 0.15);
+  --warning: #f59e0b;
+  --warning-light: rgba(245, 158, 11, 0.15);
+  --info: #38bdf8;
+  --info-light: rgba(56, 189, 248, 0.15);
+
+  /* Accessibility & Controls */
+  --focus-ring: #38bdf8;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.35);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.45);
+
+  /* Component Badges */
+  --badge-neutral-bg: #334155;
+  --badge-neutral-text: #cbd5e1; /* 6.0:1 contrast on #334155 */
+  --focus-badge-bg: rgba(124, 58, 237, 0.2);
+  --focus-badge-color: #c4b5fd;
+  --focus-border: #6d28d9;
+  --intent-badge-bg: rgba(79, 70, 229, 0.2);
+  --intent-badge-color: #a5b4fc;
+  --intent-border: #4338ca;
+
+  --bg-color: var(--bg-main);
+  --bg: var(--bg-main);
+}
+
+/* ==========================================================================
+   4. Automatic System Dark Preference
+   Applies dark tokens automatically when the OS prefers dark mode and no
+   explicit light/sepia override is active.
+   Zero white-flash on initial paint before scripts execute.
+   ========================================================================== */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="sepia"]):not([data-effective-theme="light"]):not([data-effective-theme="sepia"]) {
+    color-scheme: dark;
+
+    --bg-main: #0f172a;
+    --bg-sidebar: #1e293b;
+    --card-bg: #1e293b;
+    --elevated-bg: #273549;
+    --modal-backdrop: rgba(0, 0, 0, 0.7);
+
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+
+    --border: #334155;
+    --border-focus: #22c55e;
+
+    --input-bg: #0f172a;
+    --input-border: #475569;
+
+    --accent: #22c55e;
+    --accent-hover: #16a34a;
+    --accent-light: rgba(34, 197, 94, 0.15);
+
+    --danger: #ef4444;
+    --danger-hover: #dc2626;
+    --danger-light: rgba(239, 68, 68, 0.15);
+    --warning: #f59e0b;
+    --warning-light: rgba(245, 158, 11, 0.15);
+    --info: #38bdf8;
+    --info-light: rgba(56, 189, 248, 0.15);
+
+    --focus-ring: #38bdf8;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.35);
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.45);
+
+    --badge-neutral-bg: #334155;
+    --badge-neutral-text: #cbd5e1;
+    --focus-badge-bg: rgba(124, 58, 237, 0.2);
+    --focus-badge-color: #c4b5fd;
+    --focus-border: #6d28d9;
+    --intent-badge-bg: rgba(79, 70, 229, 0.2);
+    --intent-badge-color: #a5b4fc;
+    --intent-border: #4338ca;
+
+    --bg-color: var(--bg-main);
+    --bg: var(--bg-main);
+  }
+}
+
+/* ==========================================================================
+   5. Calm Sepia Theme Tokens
+   Warm, low-strain parchment palette for mindful, low-glare reading.
+   ========================================================================== */
+:root[data-theme="sepia"],
+:root[data-effective-theme="sepia"] {
+  color-scheme: light;
+
+  /* Surfaces & Backgrounds */
+  --bg-main: #fbf0d9;
+  --bg-sidebar: #f4e8c1;
+  --card-bg: #fdf6e2;
+  --elevated-bg: #f5eccd;
+  --modal-backdrop: rgba(67, 52, 34, 0.45);
+
+  /* Typography (10.1:1 on card-bg) */
+  --text-main: #433422;
+  --text-muted: #79664f; /* 4.6:1 contrast on card-bg */
+
+  /* Borders & Dividers */
+  --border: #e3d5b5;
+  --border-focus: #8b5cf6;
+
+  /* Inputs & Form Controls */
+  --input-bg: #fdf6e2;
+  --input-border: #d4c49e;
+
+  /* Brand & Accents */
+  --accent: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --accent-light: #ece4f8;
+
+  /* Status Colors */
+  --danger: #b91c1c;
+  --danger-hover: #991b1b;
+  --danger-light: #fef2f2;
+  --warning: #b45309;
+  --warning-light: #fffbeb;
+  --info: #0369a1;
+  --info-light: #f0f9ff;
+
+  /* Accessibility & Controls */
+  --focus-ring: #8b5cf6;
+  --shadow-sm: 0 1px 2px 0 rgba(67, 52, 34, 0.08);
+  --shadow: 0 4px 6px -1px rgba(67, 52, 34, 0.12);
+
+  /* Component Badges */
+  --badge-neutral-bg: #e3d5b5;
+  --badge-neutral-text: #594732;
+  --focus-badge-bg: #ece4f8;
+  --focus-badge-color: #6d28d9;
+  --focus-border: #d8b4fe;
+  --intent-badge-bg: #ede9fe;
+  --intent-badge-color: #4338ca;
+  --intent-border: #c4b5fd;
+
+  --bg-color: var(--bg-main);
+  --bg: var(--bg-main);
+}

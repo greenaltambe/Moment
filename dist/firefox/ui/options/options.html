@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Moment Dashboard</title>
+  <link rel="stylesheet" href="../theme.css">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" aria-label="Main Navigation">
+      <div class="brand">
+        <span class="logo-circle" aria-hidden="true"></span>
+        <div class="brand-text">
+          <h2>Moment</h2>
+          <span class="brand-sub">Mindful Browsing</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu" role="tablist">
+        <button class="nav-item active" role="tab" aria-selected="true" aria-controls="tab-collections" id="nav-collections" data-tab="collections">
+          Collections & Rules
+        </button>
+        <button class="nav-item" role="tab" aria-selected="false" aria-controls="tab-settings" id="nav-settings" data-tab="settings">
+          General Settings
+        </button>
+        <button class="nav-item" role="tab" aria-selected="false" aria-controls="tab-import-export" id="nav-import-export" data-tab="import-export">
+          Import / Export
+        </button>
+        <button class="nav-item" role="tab" aria-selected="false" aria-controls="tab-privacy" id="nav-privacy" data-tab="privacy">
+          About & Privacy
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="system-meta">
+          <span>Moment v0.1.0</span>
+          <span>Schema v3</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="content-area">
+      <header class="content-header">
+        <h1 id="sectionTitle">Collections & Rules</h1>
+        <p class="section-desc" id="sectionDesc">Group websites together to apply mindful boundaries and time limits.</p>
+      </header>
+
+      <!-- Global Notification Banner -->
+      <div id="dashboardAlert" class="dashboard-alert is-hidden" role="alert" aria-live="polite"></div>
+
+      <!-- Tab 1: Collections & Rules -->
+      <section id="tab-collections" class="tab-pane active" role="tabpanel" aria-labelledby="nav-collections">
+        <div class="section-toolbar">
+          <p class="toolbar-text">Organize sites into collections with custom boundaries, pauses, and daily limits.</p>
+          <button id="btnNewCollection" class="btn btn-primary">+ New Collection</button>
+        </div>
+
+        <div id="collectionListContainer" class="collection-list-container">
+          <!-- Populated dynamically -->
+        </div>
+      </section>
+
+      <!-- Tab 2: General Settings -->
+      <section id="tab-settings" class="tab-pane is-hidden" role="tabpanel" aria-labelledby="nav-settings">
+        <div class="settings-grid">
+          <!-- Theme Setting -->
+          <div class="settings-card">
+            <h3>Appearance Theme</h3>
+            <p class="card-desc">Select visual appearance for popups and options dashboard.</p>
+            <div class="radio-group" role="radiogroup" aria-label="Appearance Theme">
+              <label class="radio-option">
+                <input type="radio" name="settingTheme" value="system" checked>
+                <span>System Default</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="settingTheme" value="light">
+                <span>Light</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="settingTheme" value="dark">
+                <span>Dark</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="settingTheme" value="sepia">
+                <span>Calm Sepia</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Time Format Setting -->
+          <div class="settings-card">
+            <h3>Time Format</h3>
+            <p class="card-desc">Choose between 12-hour (AM/PM) or 24-hour display.</p>
+            <div class="radio-group" role="radiogroup" aria-label="Time Format">
+              <label class="radio-option">
+                <input type="radio" name="settingTimeFormat" value="12h">
+                <span>12-Hour (e.g. 9:00 PM)</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="settingTimeFormat" value="24h" checked>
+                <span>24-Hour (e.g. 21:00)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Reduced Motion Setting -->
+          <div class="settings-card">
+            <h3>Accessibility & Motion</h3>
+            <p class="card-desc">Reduce or disable decorative transitions across all Moment screens.</p>
+            <label class="checkbox-option">
+              <input type="checkbox" id="settingReducedMotion">
+              <span>Reduce motion and animations</span>
+            </label>
+          </div>
+
+          <!-- Private Browsing -->
+          <div class="settings-card">
+            <h3>Private Browsing Support</h3>
+            <p class="card-desc">By default, extensions do not run in private/incognito windows unless granted by the browser.</p>
+            <p class="meta-note">To enable Moment in Private Browsing, open your browser extension settings and toggle "Allow in private windows".</p>
+          </div>
+        </div>
+
+        <div class="settings-actions">
+          <button id="btnSaveSettings" class="btn btn-primary">Save Settings</button>
+          <span id="settingsStatusMsg" class="status-msg" aria-live="polite"></span>
+        </div>
+      </section>
+
+      <!-- Tab 3: Import / Export -->
+      <section id="tab-import-export" class="tab-pane is-hidden" role="tabpanel" aria-labelledby="nav-import-export">
+        <div class="settings-grid">
+          <!-- Export Card -->
+          <div class="settings-card">
+            <h3>Export Configuration</h3>
+            <p class="card-desc">Download a backup of your collections, rules, boundaries, and settings in clean JSON format. Transient states (active passes, tab timers) are never exported.</p>
+            <button id="btnExportJson" class="btn btn-primary">Export Configuration (JSON)</button>
+          </div>
+
+          <!-- Import Card -->
+          <div class="settings-card">
+            <h3>Import Configuration</h3>
+            <p class="card-desc">Restore or merge collections from a previously exported Moment JSON backup.</p>
+
+            <div class="form-group">
+              <label for="importFileInput" class="form-label">Select JSON Backup File</label>
+              <input type="file" id="importFileInput" accept=".json,application/json" class="form-input">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Import Mode</label>
+              <div class="radio-group" role="radiogroup">
+                <label class="radio-option">
+                  <input type="radio" name="importMode" value="merge" checked>
+                  <span>Merge with existing collections (non-destructive)</span>
+                </label>
+                <label class="radio-option">
+                  <input type="radio" name="importMode" value="replace">
+                  <span>Replace all collections (destructive overwrite)</span>
+                </label>
+              </div>
+            </div>
+
+            <button id="btnImportJson" class="btn btn-secondary">Import File</button>
+            <div id="importStatusReport" class="import-status-report" aria-live="polite"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 4: About & Privacy -->
+      <section id="tab-privacy" class="tab-pane is-hidden" role="tabpanel" aria-labelledby="nav-privacy">
+        <div class="privacy-container settings-grid">
+          <div class="settings-card">
+            <h3>Local-First Architecture</h3>
+            <p class="card-desc">Moment is engineered with absolute respect for your privacy.</p>
+            <ul class="privacy-list">
+              <li><strong>Zero Telemetry:</strong> No analytics, tracking pixels, or network pings are ever executed.</li>
+              <li><strong>Local Storage:</strong> All rules, collections, usage logs, and temporary passes remain exclusively on your machine.</li>
+              <li><strong>No Cloud Dependency:</strong> Moment works completely offline and will never require an account or login.</li>
+              <li><strong>Mindful Pauses:</strong> We do not rely on shame language or unbreakable traps. Moment creates space for conscious choice.</li>
+            </ul>
+          </div>
+
+          <div class="settings-card">
+            <h3>System Diagnostics</h3>
+            <div class="diagnostics-grid">
+              <div class="diag-item">
+                <span class="diag-label">Extension Version</span>
+                <span class="diag-value" id="extensionVersionDisplay">1.1.0</span>
+              </div>
+              <div class="diag-item">
+                <span class="diag-label">Manifest Specification</span>
+                <span class="diag-value">MV3 (Chrome & Firefox)</span>
+              </div>
+              <div class="diag-item">
+                <span class="diag-label">Storage Schema</span>
+                <span class="diag-value" id="schemaVersionDisplay">Version 3</span>
+              </div>
+              <div class="diag-item">
+                <span class="diag-label">Storage Engine</span>
+                <span class="diag-value" id="storageStatusDisplay">Connected</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Collection Editor Modal -->
+  <dialog id="collectionModal" class="modal" aria-labelledby="collectionModalTitle">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="collectionModalTitle">New Collection</h2>
+        <button type="button" class="btn-close" id="btnCloseCollectionModal" aria-label="Close modal">&times;</button>
+      </div>
+
+      <form id="collectionForm" novalidate>
+        <input type="hidden" id="collectionModalId" value="">
+
+        <div class="form-group">
+          <label for="collectionModalName" class="form-label">Collection Name *</label>
+          <input type="text" id="collectionModalName" class="form-input" placeholder="e.g. Focus, Social Media, News" maxlength="64" required>
+          <span id="collectionModalNameError" class="field-error" aria-live="polite"></span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Theme Color</label>
+          <div class="color-picker-row" role="radiogroup" aria-label="Collection Color">
+            <label class="color-option color-opt-emerald">
+              <input type="radio" name="colColor" value="#15803d" checked>
+              <span class="swatch" title="Emerald"></span>
+            </label>
+            <label class="color-option color-opt-ocean">
+              <input type="radio" name="colColor" value="#0369a1">
+              <span class="swatch" title="Ocean"></span>
+            </label>
+            <label class="color-option color-opt-violet">
+              <input type="radio" name="colColor" value="#7c3aed">
+              <span class="swatch" title="Violet"></span>
+            </label>
+            <label class="color-option color-opt-amber">
+              <input type="radio" name="colColor" value="#b45309">
+              <span class="swatch" title="Amber"></span>
+            </label>
+            <label class="color-option color-opt-slate">
+              <input type="radio" name="colColor" value="#475569">
+              <span class="swatch" title="Slate"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Schedule / Boundary Section -->
+        <div class="form-section">
+          <h3>Schedule & Boundaries</h3>
+          <div class="radio-group" role="radiogroup">
+            <label class="radio-option">
+              <input type="radio" name="colScheduleMode" value="ALWAYS" checked>
+              <span>Always Active (24/7)</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="colScheduleMode" value="SCHEDULE">
+              <span>Specific Schedule Window</span>
+            </label>
+          </div>
+
+          <div id="scheduleDetailsGroup" class="schedule-details-group is-hidden">
+            <div class="days-picker" aria-label="Days of week">
+              <label class="day-chip"><input type="checkbox" name="schedDay" value="1" checked><span>Mon</span></label>
+              <label class="day-chip"><input type="checkbox" name="schedDay" value="2" checked><span>Tue</span></label>
+              <label class="day-chip"><input type="checkbox" name="schedDay" value="3" checked><span>Wed</span></label>
+              <label class="day-chip"><input type="checkbox" name="schedDay" value="4" checked><span>Thu</span></label>
+              <label class="day-chip"><input type="checkbox" name="schedDay" value="5" checked><span>Fri</span></label>
+              <label class="day-chip"><input type="checkbox" name="schedDay" value="6"><span>Sat</span></label>
+              <label class="day-chip"><input type="checkbox" name="schedDay" value="0"><span>Sun</span></label>
+            </div>
+
+            <div class="time-range-row">
+              <div class="form-group flex-1">
+                <label for="schedStartTime" class="form-label">Start Time</label>
+                <input type="time" id="schedStartTime" class="form-input" value="09:00">
+              </div>
+              <div class="form-group flex-1">
+                <label for="schedEndTime" class="form-label">End Time</label>
+                <input type="time" id="schedEndTime" class="form-input" value="17:00">
+              </div>
+            </div>
+
+            <div class="schedule-summary-box">
+              <span class="summary-label">Active Window:</span>
+              <span id="scheduleSummaryPreview" class="summary-text">Mon–Fri from 9:00 AM to 5:00 PM</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Daily Limit Section -->
+        <div class="form-section">
+          <h3>Daily Usage Limit</h3>
+          <label class="checkbox-option">
+            <input type="checkbox" id="colEnableDailyLimit">
+            <span>Enforce maximum daily browsing time</span>
+          </label>
+
+          <div id="dailyLimitInputGroup" class="limit-input-group is-hidden">
+            <div class="input-with-addon">
+              <input type="number" id="colDailyLimitMinutes" class="form-input" min="1" max="1440" step="1" value="30" placeholder="Minutes">
+              <span class="input-addon">minutes per day</span>
+            </div>
+            <span id="colDailyLimitError" class="field-error" aria-live="polite"></span>
+          </div>
+        </div>
+
+        <!-- Enforcement Mode Section -->
+        <div class="form-section">
+          <h3>Enforcement Mode</h3>
+          <p class="section-subtext">Choose how Moment acts when this collection's boundaries are active.</p>
+          <div class="radio-group" role="radiogroup" aria-label="Enforcement Mode">
+            <label class="radio-option">
+              <input type="radio" name="colEnforcementMode" value="INTERVENE" checked>
+              <span>Mindful Pause (Present breathing exercise or timer before access)</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="colEnforcementMode" value="STRICT_BLOCK">
+              <span>Strict Block (Directly block access without pause or bypass)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Intervention Pause Settings (Hidden when Strict Block) -->
+        <div id="interventionSettingsGroup" class="form-section">
+          <h3>Mindful Pause Settings</h3>
+          <p class="section-subtext">The mindful pause presented when attempting to access sites in this collection.</p>
+          <div class="radio-group" role="radiogroup" aria-label="Pause Type">
+            <label class="radio-option">
+              <input type="radio" name="colPauseType" value="BREATHE" checked>
+              <span>Calm Breathing (10-second mindful breath)</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="colPauseType" value="TIMER">
+              <span>Countdown Timer (5–60 seconds)</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="colPauseType" value="CONFIRM">
+              <span>Conscious Confirmation (Immediate choice)</span>
+            </label>
+          </div>
+
+          <div id="colTimerDurationGroup" class="form-group timer-duration-group is-hidden">
+            <label for="colTimerSeconds" class="form-label">Timer Duration (seconds)</label>
+            <input type="number" id="colTimerSeconds" class="form-input input-narrow" min="5" max="60" value="15">
+          </div>
+
+          <label class="checkbox-option mt-sm">
+            <input type="checkbox" id="colRequireIntention">
+            <span>Require typing an intention note before access is granted</span>
+          </label>
+
+          <!-- Opening / Insult Message -->
+          <div class="form-group mt-md">
+            <label class="form-label">Opening Pause Message</label>
+            <div class="radio-group" role="radiogroup" aria-label="Opening Message Mode">
+              <label class="radio-option">
+                <input type="radio" name="colOpeningMode" value="NONE" checked>
+                <span>Default Moment Pause</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="colOpeningMode" value="CUSTOM">
+                <span>Custom Message</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="colOpeningMode" value="RANDOM">
+                <span>Random Message from List</span>
+              </label>
+            </div>
+            <div id="colOpeningMessagesGroup" class="is-hidden mt-xs">
+              <textarea id="colOpeningMessagesInput" class="form-input" rows="2" placeholder="e.g. Really? You came here again?&#10;Is this aligned with your focus?&#10;Read a book instead." maxlength="1000"></textarea>
+              <span class="field-hint">Enter one message per line. In random mode, one is selected on each visit.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Block Page & Expiration Options -->
+        <div class="form-section">
+          <h3>Block Page & Expiration</h3>
+          <div class="form-group">
+            <label for="colCustomBlockMessage" class="form-label">Custom Block Message (Optional)</label>
+            <input type="text" id="colCustomBlockMessage" class="form-input" placeholder="e.g. This site is paused so you can focus." maxlength="250">
+            <span class="field-hint">Displayed on the block page when access is restricted.</span>
+          </div>
+
+          <div class="form-group mt-sm">
+            <label class="form-label">When Temporary Access Expires</label>
+            <div class="radio-group" role="radiogroup" aria-label="When Access Expires">
+              <label class="radio-option">
+                <input type="radio" name="colWhenExpires" value="IMMEDIATE" checked>
+                <span>Re-block immediately when pass expires (Recommended)</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="colWhenExpires" value="NEXT_NAV">
+                <span>Allow active page until next navigation</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="submit" id="btnSaveCollection" class="btn btn-primary">Save Collection</button>
+          <button type="button" id="btnCancelCollection" class="btn btn-secondary">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Rule Modal (Add / Edit Rule) -->
+  <dialog id="ruleModal" class="modal" aria-labelledby="ruleModalTitle">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="ruleModalTitle">Add Target Rule</h2>
+        <button type="button" class="btn-close" id="btnCloseRuleModal" aria-label="Close modal">&times;</button>
+      </div>
+
+      <form id="ruleForm" novalidate>
+        <input type="hidden" id="ruleModalCollectionId" value="">
+        <input type="hidden" id="ruleModalRuleId" value="">
+
+        <div class="form-group">
+          <label for="ruleModalType" class="form-label">Rule Type</label>
+          <select id="ruleModalType" class="form-select">
+            <option value="WEBSITE" selected>Website (Entire domain and subdomains)</option>
+            <option value="EXACT_HOST">Exact Host (Specific hostname only)</option>
+            <option value="PATH_PREFIX">Path Prefix (Host + folder path)</option>
+            <option value="EXACT_PAGE">Exact Page (Specific page URL)</option>
+            <option value="GLOB">Wildcard Pattern (Advanced bounded glob)</option>
+          </select>
+          <span id="ruleModalTypeHint" class="field-hint">Matches the entire domain, including www and subdomains.</span>
+        </div>
+
+        <div class="form-group">
+          <label for="ruleModalPattern" class="form-label">Pattern *</label>
+          <input type="text" id="ruleModalPattern" class="form-input" placeholder="e.g. reddit.com" required>
+          <span id="ruleModalPatternError" class="field-error" aria-live="polite"></span>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-option">
+            <input type="checkbox" id="ruleModalIsException">
+            <span>Treat as an Exception (Allow access to this pattern)</span>
+          </label>
+          <!-- Specificity Dominance Precedence Notice -->
+          <div id="ruleExceptionNotice" class="info-callout is-hidden">
+            <strong>Precedence Invariant:</strong> More-specific rules can still override this exception.
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="submit" id="btnSaveRule" class="btn btn-primary">Save Rule</button>
+          <button type="button" id="btnCancelRule" class="btn btn-secondary">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Confirm Action Modal -->
+  <dialog id="confirmModal" class="modal modal-sm" aria-labelledby="confirmModalTitle">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="confirmModalTitle">Confirm Action</h2>
+        <button type="button" class="btn-close" id="btnCloseConfirmModal" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmModalMessage">Are you sure you want to proceed?</p>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="btnConfirmDanger" class="btn btn-danger">Delete</button>
+        <button type="button" id="btnConfirmCancel" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

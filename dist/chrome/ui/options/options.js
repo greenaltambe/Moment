@@ -1,0 +1,1028 @@
+/**
+ * Moment Options Dashboard Controller (Phase 5)
+ * Comprehensive management for Collections, Rules, Boundaries, Schedules,
+ * Usage Limits, Settings, and Import/Export.
+ */
+import '../../shared/types.js';
+import { validateCollectionName, validateTargetPattern, formatScheduleNaturalLanguage, } from '../../core/validation/rules.js';
+import { initTheme, applyTheme } from '../theme.js';
+document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
+    // Navigation elements
+    const navItems = document.querySelectorAll('.nav-item');
+    const sectionTitle = document.getElementById('sectionTitle');
+    const sectionDesc = document.getElementById('sectionDesc');
+    const dashboardAlert = document.getElementById('dashboardAlert');
+    // Tab Panes
+    const tabCollections = document.getElementById('tab-collections');
+    const tabSettings = document.getElementById('tab-settings');
+    const tabImportExport = document.getElementById('tab-import-export');
+    const tabPrivacy = document.getElementById('tab-privacy');
+    // Collections & Rules Elements
+    const btnNewCollection = document.getElementById('btnNewCollection');
+    const collectionListContainer = document.getElementById('collectionListContainer');
+    // Collection Modal Elements
+    const collectionModal = document.getElementById('collectionModal');
+    const collectionModalTitle = document.getElementById('collectionModalTitle');
+    const btnCloseCollectionModal = document.getElementById('btnCloseCollectionModal');
+    const btnCancelCollection = document.getElementById('btnCancelCollection');
+    const collectionForm = document.getElementById('collectionForm');
+    const collectionModalId = document.getElementById('collectionModalId');
+    const collectionModalName = document.getElementById('collectionModalName');
+    const collectionModalNameError = document.getElementById('collectionModalNameError');
+    const scheduleDetailsGroup = document.getElementById('scheduleDetailsGroup');
+    const schedStartTime = document.getElementById('schedStartTime');
+    const schedEndTime = document.getElementById('schedEndTime');
+    const scheduleSummaryPreview = document.getElementById('scheduleSummaryPreview');
+    const colEnableDailyLimit = document.getElementById('colEnableDailyLimit');
+    const dailyLimitInputGroup = document.getElementById('dailyLimitInputGroup');
+    const colDailyLimitMinutes = document.getElementById('colDailyLimitMinutes');
+    const colDailyLimitError = document.getElementById('colDailyLimitError');
+    const colTimerDurationGroup = document.getElementById('colTimerDurationGroup');
+    const colTimerSeconds = document.getElementById('colTimerSeconds');
+    const colRequireIntention = document.getElementById('colRequireIntention');
+    const interventionSettingsGroup = document.getElementById('interventionSettingsGroup');
+    const colCustomBlockMessage = document.getElementById('colCustomBlockMessage');
+    const colOpeningMessagesGroup = document.getElementById('colOpeningMessagesGroup');
+    const colOpeningMessagesInput = document.getElementById('colOpeningMessagesInput');
+    // Rule Modal Elements
+    const ruleModal = document.getElementById('ruleModal');
+    const ruleModalTitle = document.getElementById('ruleModalTitle');
+    const btnCloseRuleModal = document.getElementById('btnCloseRuleModal');
+    const btnCancelRule = document.getElementById('btnCancelRule');
+    const ruleForm = document.getElementById('ruleForm');
+    const ruleModalCollectionId = document.getElementById('ruleModalCollectionId');
+    const ruleModalRuleId = document.getElementById('ruleModalRuleId');
+    const ruleModalType = document.getElementById('ruleModalType');
+    const ruleModalPattern = document.getElementById('ruleModalPattern');
+    const ruleModalPatternError = document.getElementById('ruleModalPatternError');
+    const ruleTypeHelperText = document.getElementById('ruleModalTypeHint');
+    const ruleModalIsException = document.getElementById('ruleModalIsException');
+    const ruleExceptionNotice = document.getElementById('ruleExceptionNotice');
+    // Confirm Modal Elements
+    const confirmModal = document.getElementById('confirmModal');
+    const confirmModalTitle = document.getElementById('confirmModalTitle');
+    const confirmModalMessage = document.getElementById('confirmModalMessage');
+    const btnConfirmDanger = document.getElementById('btnConfirmDanger');
+    const btnConfirmCancel = document.getElementById('btnConfirmCancel');
+    const btnCloseConfirmModal = document.getElementById('btnCloseConfirmModal');
+    // Settings Elements
+    const btnSaveSettings = document.getElementById('btnSaveSettings');
+    const settingsStatusMsg = document.getElementById('settingsStatusMsg');
+    const settingReducedMotion = document.getElementById('settingReducedMotion');
+    // Import / Export Elements
+    const btnExportJson = document.getElementById('btnExportJson');
+    const btnImportJson = document.getElementById('btnImportJson');
+    const importFileInput = document.getElementById('importFileInput');
+    const importStatusReport = document.getElementById('importStatusReport');
+    // Diagnostics
+    const extensionVersionDisplay = document.getElementById('extensionVersionDisplay');
+    const schemaVersionDisplay = document.getElementById('schemaVersionDisplay');
+    const storageStatusDisplay = document.getElementById('storageStatusDisplay');
+    // Local State Cache
+    let collectionsState = {};
+    let pendingConfirmAction = null;
+    let lastFocusedElement = null;
+    function rememberFocus() {
+        lastFocusedElement = document.activeElement;
+    }
+    function restoreFocus() {
+        if (lastFocusedElement && typeof lastFocusedElement.focus === 'function' && document.contains(lastFocusedElement)) {
+            lastFocusedElement.focus();
+        }
+        else {
+            btnNewCollection.focus();
+        }
+        lastFocusedElement = null;
+    }
+    function applyReducedMotion(reduced) {
+        if (reduced) {
+            document.documentElement.setAttribute('data-reduced-motion', 'true');
+        }
+        else {
+            document.documentElement.removeAttribute('data-reduced-motion');
+        }
+    }
+    // Navigation Descriptions
+    const navDescriptions = {
+        collections: {
+            title: 'Collections & Rules',
+            desc: 'Group websites together to apply mindful boundaries and time limits.',
+        },
+        settings: {
+            title: 'General Settings',
+            desc: 'Personalize appearance, time format, and motion preferences.',
+        },
+        'import-export': {
+            title: 'Import / Export',
+            desc: 'Backup and restore your collections, rules, and boundaries.',
+        },
+        privacy: {
+            title: 'About & Privacy',
+            desc: 'Review local-first architecture and system information.',
+        },
+    };
+    function showAlert(message, type = 'success', timeoutMs = 4000) {
+        dashboardAlert.textContent = message;
+        dashboardAlert.className = `dashboard-alert ${type}`;
+        dashboardAlert.classList.remove('is-hidden');
+        if (timeoutMs > 0) {
+            setTimeout(() => {
+                if (dashboardAlert.textContent === message) {
+                    dashboardAlert.classList.add('is-hidden');
+                }
+            }, timeoutMs);
+        }
+    }
+    // --- TAB ROUTING ---
+    function switchTab(tabName) {
+        navItems.forEach((btn) => {
+            const active = btn.getAttribute('data-tab') === tabName;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-selected', String(active));
+        });
+        const info = navDescriptions[tabName];
+        if (info) {
+            sectionTitle.textContent = info.title;
+            sectionDesc.textContent = info.desc;
+        }
+        tabCollections.classList.toggle('is-hidden', tabName !== 'collections');
+        tabSettings.classList.toggle('is-hidden', tabName !== 'settings');
+        tabImportExport.classList.toggle('is-hidden', tabName !== 'import-export');
+        tabPrivacy.classList.toggle('is-hidden', tabName !== 'privacy');
+    }
+    navItems.forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const tab = btn.getAttribute('data-tab') || 'collections';
+            switchTab(tab);
+        });
+    });
+    // --- COLLECTIONS & RULES RENDERING ---
+    async function loadCollections() {
+        return new Promise((resolve) => {
+            if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+                chrome.runtime.sendMessage({ type: 'GET_COLLECTIONS' }, (res) => {
+                    if (res?.success && res.data) {
+                        collectionsState = res.data;
+                        resolve(res.data);
+                    }
+                    else {
+                        resolve({});
+                    }
+                });
+            }
+            else {
+                resolve({});
+            }
+        });
+    }
+    function renderCollections(cols) {
+        collectionsState = cols;
+        collectionListContainer.replaceChildren();
+        const colList = Object.values(cols);
+        if (colList.length === 0) {
+            const emptyCard = document.createElement('div');
+            emptyCard.className = 'empty-state-card';
+            const h3 = document.createElement('h3');
+            h3.textContent = 'No Collections Yet';
+            const p = document.createElement('p');
+            p.textContent = 'Create your first collection to group websites and apply mindful boundaries.';
+            const btnEmptyCreate = document.createElement('button');
+            btnEmptyCreate.id = 'btnEmptyCreate';
+            btnEmptyCreate.className = 'btn btn-primary';
+            btnEmptyCreate.textContent = '+ Create First Collection';
+            btnEmptyCreate.addEventListener('click', () => openCollectionModal(null));
+            emptyCard.append(h3, p, btnEmptyCreate);
+            collectionListContainer.appendChild(emptyCard);
+            return;
+        }
+        for (const col of colList) {
+            const card = document.createElement('div');
+            card.className = 'collection-card';
+            // Header summary badges
+            const ruleCount = col.targets.length;
+            const ruleCountText = `${ruleCount} rule${ruleCount === 1 ? '' : 's'}`;
+            let limitBadge = 'No limit';
+            if (col.dailyLimitMs !== null && col.dailyLimitMs !== undefined) {
+                const mins = Math.round(col.dailyLimitMs / 60000);
+                limitBadge = `${mins}m daily limit`;
+            }
+            let scheduleBadge = 'Always active';
+            if (col.boundary.schedule.enabled && col.boundary.schedule.intervals.length > 0) {
+                scheduleBadge = formatScheduleNaturalLanguage(col.boundary.schedule);
+            }
+            // Check if collection has exceptions
+            const hasExceptions = col.targets.some((t) => t.isException);
+            // Build header
+            const header = document.createElement('div');
+            header.className = 'collection-card-header';
+            const headerLeft = document.createElement('div');
+            headerLeft.className = 'col-header-left';
+            const colorDot = document.createElement('span');
+            colorDot.className = 'col-color-dot';
+            colorDot.dataset.color = col.color || '#15803d';
+            const colTitle = document.createElement('h2');
+            colTitle.className = 'col-name';
+            colTitle.textContent = col.name;
+            const badgeRules = document.createElement('span');
+            badgeRules.className = 'badge';
+            badgeRules.textContent = ruleCountText;
+            const badgeLimit = document.createElement('span');
+            badgeLimit.className = `badge ${col.dailyLimitMs ? 'badge-warning' : ''}`.trim();
+            badgeLimit.textContent = limitBadge;
+            const badgeSched = document.createElement('span');
+            badgeSched.className = `badge ${col.boundary.schedule.enabled ? 'badge-info' : ''}`.trim();
+            badgeSched.textContent = scheduleBadge;
+            const isStrict = col.boundary?.pause?.type === 'NONE';
+            const badgeEnf = document.createElement('span');
+            badgeEnf.className = `badge ${isStrict ? 'badge-danger' : 'badge-neutral'}`.trim();
+            badgeEnf.textContent = isStrict ? 'Strict Block' : 'Mindful Pause';
+            headerLeft.append(colorDot, colTitle, badgeEnf, badgeRules, badgeLimit, badgeSched);
+            const headerActions = document.createElement('div');
+            headerActions.className = 'col-header-actions';
+            const btnAddRule = document.createElement('button');
+            btnAddRule.className = 'btn btn-sm btn-secondary btn-add-rule';
+            btnAddRule.dataset.colId = col.id;
+            btnAddRule.textContent = '+ Add Rule';
+            const btnEditCol = document.createElement('button');
+            btnEditCol.className = 'btn btn-sm btn-ghost btn-edit-col';
+            btnEditCol.dataset.colId = col.id;
+            btnEditCol.textContent = 'Edit';
+            const btnDelCol = document.createElement('button');
+            btnDelCol.className = 'btn btn-sm btn-ghost text-danger btn-del-col';
+            btnDelCol.dataset.colId = col.id;
+            btnDelCol.textContent = 'Delete';
+            headerActions.append(btnAddRule, btnEditCol, btnDelCol);
+            header.append(headerLeft, headerActions);
+            // Build table container
+            const tableContainer = document.createElement('div');
+            tableContainer.className = 'rules-table-container';
+            const table = document.createElement('table');
+            table.className = 'rules-table';
+            const thead = document.createElement('thead');
+            const headerTr = document.createElement('tr');
+            const thPattern = document.createElement('th');
+            thPattern.className = 'col-pattern';
+            thPattern.textContent = 'Pattern';
+            const thMode = document.createElement('th');
+            thMode.className = 'col-mode';
+            thMode.textContent = 'Mode';
+            const thPolicy = document.createElement('th');
+            thPolicy.className = 'col-policy';
+            thPolicy.textContent = 'Policy';
+            const thActions = document.createElement('th');
+            thActions.className = 'col-actions';
+            thActions.textContent = 'Actions';
+            headerTr.append(thPattern, thMode, thPolicy, thActions);
+            thead.appendChild(headerTr);
+            const tbody = document.createElement('tbody');
+            tbody.id = `rules-tbody-${col.id}`;
+            table.append(thead, tbody);
+            tableContainer.appendChild(table);
+            card.append(header, tableContainer);
+            if (hasExceptions) {
+                const callout = document.createElement('div');
+                callout.className = 'info-callout';
+                const strong = document.createElement('strong');
+                strong.textContent = 'Precedence Invariant: ';
+                callout.append(strong, document.createTextNode('More-specific rules can still override exceptions within this collection.'));
+                card.appendChild(callout);
+            }
+            if (col.targets.length === 0) {
+                const emptyRow = document.createElement('tr');
+                const emptyTd = document.createElement('td');
+                emptyTd.colSpan = 4;
+                emptyTd.className = 'rules-table-empty';
+                emptyTd.textContent = 'No rules in this collection. Click "+ Add Rule" to add websites or domains.';
+                emptyRow.appendChild(emptyTd);
+                tbody.appendChild(emptyRow);
+            }
+            else {
+                for (const target of col.targets) {
+                    const tr = document.createElement('tr');
+                    const tdPattern = document.createElement('td');
+                    tdPattern.className = 'rule-pattern';
+                    tdPattern.textContent = target.pattern;
+                    const tdMode = document.createElement('td');
+                    const badgeMode = document.createElement('span');
+                    badgeMode.className = 'badge';
+                    badgeMode.textContent = target.type;
+                    tdMode.appendChild(badgeMode);
+                    const tdPolicy = document.createElement('td');
+                    const badgePolicy = document.createElement('span');
+                    if (target.isException) {
+                        badgePolicy.className = 'badge badge-warning';
+                        badgePolicy.title = 'More-specific rules can still override this exception';
+                        badgePolicy.textContent = 'Exception (Allow)';
+                    }
+                    else {
+                        badgePolicy.className = 'badge badge-emerald';
+                        badgePolicy.textContent = 'Restricted';
+                    }
+                    tdPolicy.appendChild(badgePolicy);
+                    const tdActions = document.createElement('td');
+                    tdActions.className = 'text-right';
+                    const btnEditRule = document.createElement('button');
+                    btnEditRule.className = 'btn btn-sm btn-ghost btn-edit-rule';
+                    btnEditRule.dataset.colId = col.id;
+                    btnEditRule.dataset.ruleId = target.id;
+                    btnEditRule.textContent = 'Edit';
+                    const btnDelRule = document.createElement('button');
+                    btnDelRule.className = 'btn btn-sm btn-ghost text-danger btn-del-rule';
+                    btnDelRule.dataset.colId = col.id;
+                    btnDelRule.dataset.ruleId = target.id;
+                    btnDelRule.textContent = 'Delete';
+                    tdActions.append(btnEditRule, btnDelRule);
+                    tr.append(tdPattern, tdMode, tdPolicy, tdActions);
+                    tbody.appendChild(tr);
+                }
+            }
+            collectionListContainer.appendChild(card);
+        }
+        // Attach Action Listeners
+        collectionListContainer.querySelectorAll('.btn-add-rule').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const colId = btn.getAttribute('data-col-id');
+                openRuleModal(colId, null);
+            });
+        });
+        collectionListContainer.querySelectorAll('.btn-edit-col').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const colId = btn.getAttribute('data-col-id');
+                const col = cols[colId];
+                if (col)
+                    openCollectionModal(col);
+            });
+        });
+        collectionListContainer.querySelectorAll('.btn-del-col').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const colId = btn.getAttribute('data-col-id');
+                const col = cols[colId];
+                if (col)
+                    confirmDeleteCollection(col.id, col.name);
+            });
+        });
+        collectionListContainer.querySelectorAll('.btn-edit-rule').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const colId = btn.getAttribute('data-col-id');
+                const ruleId = btn.getAttribute('data-rule-id');
+                const col = cols[colId];
+                const rule = col?.targets.find((t) => t.id === ruleId);
+                if (rule)
+                    openRuleModal(colId, rule);
+            });
+        });
+        collectionListContainer.querySelectorAll('.btn-del-rule').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const colId = btn.getAttribute('data-col-id');
+                const ruleId = btn.getAttribute('data-rule-id');
+                const col = cols[colId];
+                const rule = col?.targets.find((t) => t.id === ruleId);
+                if (rule)
+                    confirmDeleteRule(colId, rule.id, rule.pattern);
+            });
+        });
+    }
+    // --- COLLECTION MODAL ---
+    function openCollectionModal(col) {
+        rememberFocus();
+        collectionModalTitle.textContent = col ? 'Edit Collection' : 'New Collection';
+        collectionModalId.value = col ? col.id : '';
+        collectionModalName.value = col ? col.name : '';
+        collectionModalNameError.textContent = '';
+        colDailyLimitError.textContent = '';
+        // Color
+        const targetColor = col?.color || '#15803d';
+        const colorRadio = collectionForm.querySelector(`input[name="colColor"][value="${targetColor}"]`);
+        if (colorRadio)
+            colorRadio.checked = true;
+        // Schedule
+        const schedMode = col?.boundary.schedule.enabled ? 'SCHEDULE' : 'ALWAYS';
+        const schedModeRadio = collectionForm.querySelector(`input[name="colScheduleMode"][value="${schedMode}"]`);
+        if (schedModeRadio)
+            schedModeRadio.checked = true;
+        scheduleDetailsGroup.classList.toggle('is-hidden', schedMode !== 'SCHEDULE');
+        // Populate schedule inputs
+        const interval = col?.boundary.schedule.intervals[0];
+        const days = interval?.days || [1, 2, 3, 4, 5];
+        collectionForm.querySelectorAll('input[name="schedDay"]').forEach((chk) => {
+            chk.checked = days.includes(parseInt(chk.value, 10));
+        });
+        const startMin = interval ? interval.startMinute : 9 * 60;
+        const endMin = interval ? interval.endMinute : 17 * 60;
+        schedStartTime.value = formatMinuteToHHMM(startMin);
+        schedEndTime.value = formatMinuteToHHMM(endMin);
+        updateScheduleSummary();
+        // Daily Limit
+        const hasLimit = col?.dailyLimitMs !== null && col?.dailyLimitMs !== undefined;
+        colEnableDailyLimit.checked = hasLimit;
+        dailyLimitInputGroup.classList.toggle('is-hidden', !hasLimit);
+        colDailyLimitMinutes.value = hasLimit ? String(Math.round(col.dailyLimitMs / 60000)) : '30';
+        // Enforcement Mode
+        const isStrict = col?.boundary?.pause?.type === 'NONE';
+        const enfMode = isStrict ? 'STRICT_BLOCK' : 'INTERVENE';
+        const enfRadio = collectionForm.querySelector(`input[name="colEnforcementMode"][value="${enfMode}"]`);
+        if (enfRadio)
+            enfRadio.checked = true;
+        interventionSettingsGroup.classList.toggle('is-hidden', isStrict);
+        // Pause Type
+        const pauseType = col?.boundary?.pause?.type !== 'NONE' ? (col?.boundary?.pause?.type || 'BREATHE') : 'BREATHE';
+        const pauseRadio = collectionForm.querySelector(`input[name="colPauseType"][value="${pauseType}"]`);
+        if (pauseRadio)
+            pauseRadio.checked = true;
+        colTimerDurationGroup.classList.toggle('is-hidden', pauseType !== 'TIMER');
+        colTimerSeconds.value = String(col?.boundary?.pause?.durationSeconds || 15);
+        colRequireIntention.checked = Boolean(col?.boundary?.pause?.requireIntentionText);
+        // Opening Message
+        const opMode = col?.openingMessageMode || 'NONE';
+        const opRadio = collectionForm.querySelector(`input[name="colOpeningMode"][value="${opMode}"]`);
+        if (opRadio)
+            opRadio.checked = true;
+        colOpeningMessagesGroup.classList.toggle('is-hidden', opMode === 'NONE');
+        colOpeningMessagesInput.value = col?.openingMessages && col.openingMessages.length > 0 ? col.openingMessages.join('\n') : '';
+        // Custom Block Message
+        colCustomBlockMessage.value = col?.customBlockMessage || '';
+        // When Access Expires
+        const whenExp = col?.whenAccessExpires || 'IMMEDIATE';
+        const whenExpRadio = collectionForm.querySelector(`input[name="colWhenExpires"][value="${whenExp}"]`);
+        if (whenExpRadio)
+            whenExpRadio.checked = true;
+        collectionModal.showModal();
+        collectionModalName.focus();
+    }
+    function formatMinuteToHHMM(minute) {
+        const h = Math.floor(minute / 60).toString().padStart(2, '0');
+        const m = (minute % 60).toString().padStart(2, '0');
+        return `${h}:${m}`;
+    }
+    function parseHHMMToMinute(hhmm) {
+        const parts = hhmm.split(':');
+        if (parts.length !== 2)
+            return 0;
+        const h = parseInt(parts[0], 10) || 0;
+        const m = parseInt(parts[1], 10) || 0;
+        return Math.max(0, Math.min(1439, h * 60 + m));
+    }
+    function updateScheduleSummary() {
+        const days = [];
+        collectionForm.querySelectorAll('input[name="schedDay"]:checked').forEach((chk) => {
+            days.push(parseInt(chk.value, 10));
+        });
+        const startMin = parseHHMMToMinute(schedStartTime.value);
+        const endMin = parseHHMMToMinute(schedEndTime.value);
+        const interval = {
+            days,
+            startMinute: startMin,
+            endMinute: endMin,
+        };
+        scheduleSummaryPreview.textContent = formatScheduleNaturalLanguage({
+            enabled: true,
+            intervals: [interval],
+        });
+    }
+    // Event Listeners for Collection Modal
+    collectionForm.querySelectorAll('input[name="colScheduleMode"]').forEach((radio) => {
+        radio.addEventListener('change', () => {
+            scheduleDetailsGroup.classList.toggle('is-hidden', !(radio.value === 'SCHEDULE' && radio.checked));
+            if (radio.checked && radio.value === 'SCHEDULE')
+                updateScheduleSummary();
+        });
+    });
+    collectionForm.querySelectorAll('input[name="schedDay"]').forEach((chk) => {
+        chk.addEventListener('change', updateScheduleSummary);
+    });
+    schedStartTime.addEventListener('input', updateScheduleSummary);
+    schedEndTime.addEventListener('input', updateScheduleSummary);
+    colEnableDailyLimit.addEventListener('change', () => {
+        dailyLimitInputGroup.classList.toggle('is-hidden', !colEnableDailyLimit.checked);
+        if (colEnableDailyLimit.checked)
+            colDailyLimitMinutes.focus();
+    });
+    collectionForm.querySelectorAll('input[name="colEnforcementMode"]').forEach((radio) => {
+        radio.addEventListener('change', () => {
+            const isStrict = radio.value === 'STRICT_BLOCK' && radio.checked;
+            interventionSettingsGroup.classList.toggle('is-hidden', isStrict);
+        });
+    });
+    collectionForm.querySelectorAll('input[name="colPauseType"]').forEach((radio) => {
+        radio.addEventListener('change', () => {
+            colTimerDurationGroup.classList.toggle('is-hidden', !(radio.value === 'TIMER' && radio.checked));
+        });
+    });
+    collectionForm.querySelectorAll('input[name="colOpeningMode"]').forEach((radio) => {
+        radio.addEventListener('change', () => {
+            colOpeningMessagesGroup.classList.toggle('is-hidden', radio.value === 'NONE' && radio.checked);
+        });
+    });
+    btnCloseCollectionModal.addEventListener('click', () => {
+        collectionModal.close();
+        restoreFocus();
+    });
+    btnCancelCollection.addEventListener('click', () => {
+        collectionModal.close();
+        restoreFocus();
+    });
+    collectionForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        collectionModalNameError.textContent = '';
+        colDailyLimitError.textContent = '';
+        // Validate Name
+        const nameVal = validateCollectionName(collectionModalName.value);
+        if (!nameVal.valid) {
+            collectionModalNameError.textContent = nameVal.error || 'Invalid collection name';
+            collectionModalName.focus();
+            return;
+        }
+        // Validate Daily Limit
+        let dailyLimitMs = null;
+        if (colEnableDailyLimit.checked) {
+            const minutes = parseInt(colDailyLimitMinutes.value, 10);
+            if (isNaN(minutes) || minutes < 1 || minutes > 1440) {
+                colDailyLimitError.textContent = 'Daily limit must be between 1 and 1440 minutes.';
+                colDailyLimitMinutes.focus();
+                return;
+            }
+            dailyLimitMs = minutes * 60 * 1000;
+        }
+        // Color
+        const colorInput = collectionForm.querySelector('input[name="colColor"]:checked');
+        const color = colorInput?.value || '#15803d';
+        // Schedule
+        const schedModeInput = collectionForm.querySelector('input[name="colScheduleMode"]:checked');
+        const isSchedule = schedModeInput?.value === 'SCHEDULE';
+        let scheduleIntervals = [];
+        if (isSchedule) {
+            const days = [];
+            collectionForm.querySelectorAll('input[name="schedDay"]:checked').forEach((chk) => {
+                days.push(parseInt(chk.value, 10));
+            });
+            const startMin = parseHHMMToMinute(schedStartTime.value);
+            const endMin = parseHHMMToMinute(schedEndTime.value);
+            scheduleIntervals = [{ days, startMinute: startMin, endMinute: endMin }];
+        }
+        // Enforcement Mode
+        const enfInput = collectionForm.querySelector('input[name="colEnforcementMode"]:checked');
+        const isStrict = enfInput?.value === 'STRICT_BLOCK';
+        // Pause Type
+        const pauseTypeInput = collectionForm.querySelector('input[name="colPauseType"]:checked');
+        const chosenPauseType = (pauseTypeInput?.value || 'BREATHE');
+        let durationSeconds = 10;
+        if (chosenPauseType === 'TIMER') {
+            const s = parseInt(colTimerSeconds.value, 10);
+            durationSeconds = Math.max(5, Math.min(60, isNaN(s) ? 15 : s));
+        }
+        else if (chosenPauseType === 'CONFIRM') {
+            durationSeconds = 0;
+        }
+        const finalPauseType = isStrict ? 'NONE' : chosenPauseType;
+        const finalDurationSeconds = isStrict ? 0 : durationSeconds;
+        const finalRequireIntention = isStrict ? false : colRequireIntention.checked;
+        // Opening Message
+        const opModeInput = collectionForm.querySelector('input[name="colOpeningMode"]:checked');
+        const opMode = (opModeInput?.value || 'NONE');
+        const rawOpeningText = colOpeningMessagesInput.value || '';
+        const openingMessages = rawOpeningText
+            .split('\n')
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0 && s.length <= 250)
+            .slice(0, 10);
+        // Custom Block Message
+        const customBlockMessage = colCustomBlockMessage.value.trim() || null;
+        // When Access Expires
+        const whenExpInput = collectionForm.querySelector('input[name="colWhenExpires"]:checked');
+        const whenAccessExpires = (whenExpInput?.value === 'NEXT_NAV' ? 'NEXT_NAV' : 'IMMEDIATE');
+        const boundary = {
+            schedule: {
+                enabled: isSchedule,
+                intervals: scheduleIntervals,
+            },
+            limits: {
+                dailyMinutes: dailyLimitMs ? Math.round(dailyLimitMs / 60000) : null,
+                sessionMinutes: null,
+            },
+            pause: {
+                type: finalPauseType,
+                durationSeconds: finalDurationSeconds,
+                requireIntentionText: finalRequireIntention,
+            },
+            action: { type: 'BLOCK_PAGE', redirectUrl: null },
+            strictMode: isStrict,
+        };
+        const colId = collectionModalId.value;
+        // Stale State Check: Re-read canonical state before committing mutations
+        const latestCols = await loadCollections();
+        if (colId) {
+            if (!latestCols[colId]) {
+                showAlert('This collection was deleted in another window or tab.', 'error');
+                collectionModal.close();
+                restoreFocus();
+                renderCollections(latestCols);
+                return;
+            }
+            // UPDATE
+            const res = await new Promise((resolve) => {
+                chrome.runtime.sendMessage({
+                    type: 'UPDATE_COLLECTION',
+                    collectionId: colId,
+                    updates: {
+                        name: nameVal.sanitized,
+                        color,
+                        dailyLimitMs,
+                        boundary,
+                        customBlockMessage,
+                        openingMessageMode: opMode,
+                        openingMessages,
+                        whenAccessExpires,
+                    },
+                }, resolve);
+            });
+            if (!res?.success) {
+                collectionModalNameError.textContent = res?.error || 'Failed to update collection';
+                return;
+            }
+            showAlert(`Collection "${nameVal.sanitized}" updated.`);
+        }
+        else {
+            // CREATE
+            const res = await new Promise((resolve) => {
+                chrome.runtime.sendMessage({
+                    type: 'CREATE_COLLECTION',
+                    name: nameVal.sanitized,
+                    color,
+                    icon: 'shield',
+                    dailyLimitMs,
+                    boundary,
+                    customBlockMessage,
+                    openingMessageMode: opMode,
+                    openingMessages,
+                    whenAccessExpires,
+                }, resolve);
+            });
+            if (!res?.success) {
+                collectionModalNameError.textContent = res?.error || 'Failed to create collection';
+                return;
+            }
+            showAlert(`Collection "${nameVal.sanitized}" created.`);
+        }
+        collectionModal.close();
+        restoreFocus();
+        const updated = await loadCollections();
+        renderCollections(updated);
+    });
+    btnNewCollection.addEventListener('click', () => openCollectionModal(null));
+    // --- RULE MODAL ---
+    const ruleTypeDescriptions = {
+        WEBSITE: 'Matches example.com and any subdomains (like blog.example.com).',
+        EXACT_HOST: 'Matches only the exact host specified (e.g. sub.example.com, not example.com).',
+        PATH_PREFIX: 'Matches the host and any path beginning with the prefix (e.g. site.com/feed/).',
+        EXACT_PAGE: 'Matches the exact page URL and path only.',
+        GLOB: 'Wildcard pattern using * and ? (e.g. *.example.com/*news*).',
+    };
+    function updateRuleHelper() {
+        const type = ruleModalType.value;
+        ruleTypeHelperText.textContent = ruleTypeDescriptions[type] || '';
+    }
+    function openRuleModal(colId, rule) {
+        rememberFocus();
+        const col = collectionsState[colId];
+        ruleModalTitle.textContent = rule ? `Edit Rule (${col?.name || 'Collection'})` : `Add Rule to ${col?.name || 'Collection'}`;
+        ruleModalCollectionId.value = colId;
+        ruleModalRuleId.value = rule ? rule.id : '';
+        ruleModalPattern.value = rule ? rule.pattern : '';
+        ruleModalType.value = rule ? rule.type : 'WEBSITE';
+        ruleModalIsException.checked = rule ? Boolean(rule.isException) : false;
+        ruleModalPatternError.textContent = '';
+        ruleExceptionNotice.classList.toggle('is-hidden', !ruleModalIsException.checked);
+        updateRuleHelper();
+        ruleModal.showModal();
+        ruleModalPattern.focus();
+    }
+    ruleModalType.addEventListener('change', updateRuleHelper);
+    ruleModalIsException.addEventListener('change', () => {
+        ruleExceptionNotice.classList.toggle('is-hidden', !ruleModalIsException.checked);
+    });
+    btnCloseRuleModal.addEventListener('click', () => {
+        ruleModal.close();
+        restoreFocus();
+    });
+    btnCancelRule.addEventListener('click', () => {
+        ruleModal.close();
+        restoreFocus();
+    });
+    ruleForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        ruleModalPatternError.textContent = '';
+        const colId = ruleModalCollectionId.value;
+        const ruleId = ruleModalRuleId.value;
+        const ruleType = ruleModalType.value;
+        const patternInput = ruleModalPattern.value;
+        const isException = ruleModalIsException.checked;
+        const patternVal = validateTargetPattern(patternInput, ruleType);
+        if (!patternVal.valid) {
+            ruleModalPatternError.textContent = patternVal.error || 'Invalid pattern';
+            ruleModalPattern.focus();
+            return;
+        }
+        // Stale State Check: Re-read canonical collections before committing rule mutations
+        const latestCols = await loadCollections();
+        if (!latestCols[colId]) {
+            showAlert('The parent collection was deleted in another window or tab.', 'error');
+            ruleModal.close();
+            restoreFocus();
+            renderCollections(latestCols);
+            return;
+        }
+        if (ruleId && !latestCols[colId].targets.some((t) => t.id === ruleId)) {
+            showAlert('This rule was deleted in another window or tab.', 'error');
+            ruleModal.close();
+            restoreFocus();
+            renderCollections(latestCols);
+            return;
+        }
+        if (ruleId) {
+            // UPDATE RULE
+            const res = await new Promise((resolve) => {
+                chrome.runtime.sendMessage({
+                    type: 'UPDATE_RULE',
+                    collectionId: colId,
+                    ruleId,
+                    updates: {
+                        pattern: patternVal.sanitized,
+                        type: ruleType,
+                        isException,
+                    },
+                }, resolve);
+            });
+            if (!res?.success) {
+                ruleModalPatternError.textContent = res?.error || 'Failed to update rule';
+                return;
+            }
+            showAlert(`Rule "${patternVal.sanitized}" updated.`);
+        }
+        else {
+            // CREATE RULE
+            const res = await new Promise((resolve) => {
+                chrome.runtime.sendMessage({
+                    type: 'CREATE_RULE',
+                    collectionId: colId,
+                    pattern: patternVal.sanitized,
+                    ruleType,
+                    isException,
+                }, resolve);
+            });
+            if (!res?.success) {
+                ruleModalPatternError.textContent = res?.error || 'Failed to add rule';
+                return;
+            }
+            showAlert(`Rule "${patternVal.sanitized}" added.`);
+        }
+        ruleModal.close();
+        restoreFocus();
+        const updated = await loadCollections();
+        renderCollections(updated);
+    });
+    // --- CONFIRM MODAL (DELETIONS) ---
+    function openConfirmModal(title, message, onConfirm) {
+        rememberFocus();
+        confirmModalTitle.textContent = title;
+        confirmModalMessage.textContent = message;
+        pendingConfirmAction = onConfirm;
+        confirmModal.showModal();
+        btnConfirmCancel.focus();
+    }
+    function closeConfirmModal() {
+        pendingConfirmAction = null;
+        confirmModal.close();
+        restoreFocus();
+    }
+    btnCloseConfirmModal.addEventListener('click', closeConfirmModal);
+    btnConfirmCancel.addEventListener('click', closeConfirmModal);
+    btnConfirmDanger.addEventListener('click', async () => {
+        if (pendingConfirmAction) {
+            await pendingConfirmAction();
+        }
+        closeConfirmModal();
+    });
+    function confirmDeleteCollection(colId, colName) {
+        openConfirmModal('Delete Collection', `Are you sure you want to delete "${colName}"? All rules within this collection will be permanently removed.`, async () => {
+            const latestCols = await loadCollections();
+            if (!latestCols[colId]) {
+                showAlert('This collection was already deleted in another window or tab.', 'error');
+                renderCollections(latestCols);
+                return;
+            }
+            const res = await new Promise((resolve) => {
+                chrome.runtime.sendMessage({
+                    type: 'DELETE_COLLECTION',
+                    collectionId: colId,
+                }, resolve);
+            });
+            if (res?.success) {
+                showAlert(`Collection "${colName}" deleted.`);
+                const updated = await loadCollections();
+                renderCollections(updated);
+            }
+            else {
+                showAlert(res?.error || 'Failed to delete collection.', 'error');
+            }
+        });
+    }
+    function confirmDeleteRule(colId, ruleId, pattern) {
+        openConfirmModal('Delete Rule', `Are you sure you want to delete rule "${pattern}"?`, async () => {
+            const latestCols = await loadCollections();
+            if (!latestCols[colId] || !latestCols[colId].targets.some((t) => t.id === ruleId)) {
+                showAlert('This rule was already deleted in another window or tab.', 'error');
+                renderCollections(latestCols);
+                return;
+            }
+            const res = await new Promise((resolve) => {
+                chrome.runtime.sendMessage({
+                    type: 'DELETE_RULE',
+                    collectionId: colId,
+                    ruleId,
+                }, resolve);
+            });
+            if (res?.success) {
+                showAlert(`Rule "${pattern}" removed.`);
+                const updated = await loadCollections();
+                renderCollections(updated);
+            }
+            else {
+                showAlert(res?.error || 'Failed to remove rule.', 'error');
+            }
+        });
+    }
+    // --- GENERAL SETTINGS ---
+    function loadSettings() {
+        if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+            chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }, (res) => {
+                if (res?.success && res.data) {
+                    const settings = res.data;
+                    applyTheme(settings.theme);
+                    applyReducedMotion(Boolean(settings.reducedMotion));
+                    const themeRadio = tabSettings.querySelector(`input[name="settingTheme"][value="${settings.theme}"]`);
+                    if (themeRadio)
+                        themeRadio.checked = true;
+                    const timeRadio = tabSettings.querySelector(`input[name="settingTimeFormat"][value="${settings.timeFormat}"]`);
+                    if (timeRadio)
+                        timeRadio.checked = true;
+                    settingReducedMotion.checked = Boolean(settings.reducedMotion);
+                }
+            });
+        }
+    }
+    // Live Theme Switching
+    tabSettings.querySelectorAll('input[name="settingTheme"]').forEach((radio) => {
+        radio.addEventListener('change', () => {
+            if (radio.checked)
+                applyTheme(radio.value);
+        });
+    });
+    btnSaveSettings.addEventListener('click', async () => {
+        const themeInput = tabSettings.querySelector('input[name="settingTheme"]:checked');
+        const timeInput = tabSettings.querySelector('input[name="settingTimeFormat"]:checked');
+        const theme = (themeInput?.value || 'system');
+        const timeFormat = (timeInput?.value || '24h');
+        const reducedMotion = settingReducedMotion.checked;
+        const res = await new Promise((resolve) => {
+            chrome.runtime.sendMessage({
+                type: 'UPDATE_SETTINGS',
+                settings: {
+                    theme,
+                    timeFormat,
+                    reducedMotion,
+                },
+            }, resolve);
+        });
+        if (res?.success) {
+            settingsStatusMsg.textContent = 'Settings saved.';
+            settingsStatusMsg.className = 'status-msg success';
+            applyTheme(theme);
+            applyReducedMotion(reducedMotion);
+        }
+        else {
+            settingsStatusMsg.textContent = res?.error || 'Failed to save settings.';
+            settingsStatusMsg.className = 'status-msg error';
+        }
+        setTimeout(() => {
+            settingsStatusMsg.textContent = '';
+            settingsStatusMsg.className = 'status-msg';
+        }, 3000);
+    });
+    // --- IMPORT / EXPORT ---
+    btnExportJson.addEventListener('click', async () => {
+        const res = await new Promise((resolve) => {
+            chrome.runtime.sendMessage({ type: 'EXPORT_DATA' }, resolve);
+        });
+        if (res?.success && res.data) {
+            const jsonStr = JSON.stringify(res.data, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const dateStr = new Date().toISOString().split('T')[0];
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `moment-backup-${dateStr}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showAlert('Configuration exported successfully.');
+        }
+        else {
+            showAlert('Failed to export configuration.', 'error');
+        }
+    });
+    btnImportJson.addEventListener('click', async () => {
+        importStatusReport.textContent = '';
+        importStatusReport.className = 'import-status-report';
+        const files = importFileInput.files;
+        if (!files || files.length === 0) {
+            importStatusReport.textContent = 'Please select a JSON file to import.';
+            importStatusReport.classList.add('error');
+            return;
+        }
+        const file = files[0];
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const text = event.target?.result;
+                const parsed = JSON.parse(text);
+                const modeInput = tabImportExport.querySelector('input[name="importMode"]:checked');
+                const mode = modeInput?.value || 'merge';
+                const res = await new Promise((resolve) => {
+                    chrome.runtime.sendMessage({
+                        type: 'IMPORT_DATA',
+                        data: parsed,
+                        mode,
+                    }, resolve);
+                });
+                if (res?.success) {
+                    const count = res.data?.importedCollectionsCount || 0;
+                    importStatusReport.textContent = `Successfully imported ${count} collection(s).`;
+                    importStatusReport.classList.add('success');
+                    showAlert(`Import complete: ${count} collection(s) loaded.`);
+                    const updated = await loadCollections();
+                    renderCollections(updated);
+                }
+                else {
+                    importStatusReport.textContent = `Import failed: ${res?.error || 'Invalid configuration file'}`;
+                    importStatusReport.classList.add('error');
+                }
+            }
+            catch (err) {
+                importStatusReport.textContent = `Failed to parse JSON: ${err.message}`;
+                importStatusReport.classList.add('error');
+            }
+        };
+        reader.readAsText(file);
+    });
+    // --- ESCAPE KEY LISTENER ---
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            let closed = false;
+            if (collectionModal.open) {
+                collectionModal.close();
+                closed = true;
+            }
+            if (ruleModal.open) {
+                ruleModal.close();
+                closed = true;
+            }
+            if (confirmModal.open) {
+                closeConfirmModal();
+                closed = true;
+            }
+            if (closed) {
+                restoreFocus();
+            }
+        }
+    });
+    // Display Extension Version from Manifest
+    if (typeof chrome !== 'undefined' && chrome.runtime?.getManifest) {
+        const manifest = chrome.runtime.getManifest();
+        if (manifest?.version) {
+            extensionVersionDisplay.textContent = manifest.version;
+        }
+    }
+    // Check Schema Version
+    if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+        chrome.runtime.sendMessage({ type: 'GET_STATE' }, (res) => {
+            if (res?.success && res.data) {
+                schemaVersionDisplay.textContent = `Version ${res.data.schemaVersion || 3}`;
+                storageStatusDisplay.textContent = 'Connected (MV3 Local)';
+            }
+        });
+    }
+    // --- MOBILE SOFT KEYBOARD AUTO-SCROLL FIX ---
+    document.addEventListener('focusin', (e) => {
+        const target = e.target;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
+            setTimeout(() => {
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 150);
+        }
+    });
+    // --- INITIAL BOOT ---
+    loadSettings();
+    loadCollections().then(renderCollections);
+});
