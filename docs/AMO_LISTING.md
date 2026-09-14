@@ -7,6 +7,7 @@ This document contains the verified listing copy, technical descriptions, permis
 ## Basic Information
 
 * **Name**: Moment — Intentional Website Blocker
+* **Add-on ID (`browser_specific_settings.gecko.id`)**: `moment@greenaltambe.github.io`
 * **Slug**: `moment-intentional-blocker`
 * **Summary (Short Description)** (max 250 characters):  
   Create a mindful pause between impulse and action. A research-informed, privacy-first website blocker and intentionality tool with zero tracking.
@@ -17,9 +18,9 @@ This document contains the verified listing copy, technical descriptions, permis
   `digital-wellbeing`, `website-blocker`, `mindfulness`, `productivity`, `focus`, `privacy`, `open-source`
 * **License**: MIT License
 * **Homepage / Source Repository**:  
-  `https://github.com/Moment-Project/Moment`
+  `https://github.com/greenaltambe/Moment`
 * **Support / Bug Reports**:  
-  `https://github.com/Moment-Project/Moment/issues`
+  `https://github.com/greenaltambe/Moment/issues`
 
 ---
 

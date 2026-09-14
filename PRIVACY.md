@@ -66,4 +66,4 @@ Moment requests only the minimum permissions necessary to enforce your configure
 ## 7. Contact & Inquiries
 
 For questions regarding Moment's privacy implementation or to audit the source code, please visit the project repository on GitHub:  
-[https://github.com/Moment-Project/Moment](https://github.com/Moment-Project/Moment)
+[https://github.com/greenaltambe/Moment](https://github.com/greenaltambe/Moment)

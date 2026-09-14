@@ -14,7 +14,7 @@ Moment is an open-source, local-first browser extension designed to cultivate di
 
 ### 2. Fork & Clone
 ```bash
-git clone https://github.com/Moment-Project/Moment.git
+git clone https://github.com/greenaltambe/Moment.git
 cd Moment
 npm install
 ```

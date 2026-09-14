@@ -72,7 +72,7 @@ Moment follows a strict layered architecture emphasizing **pure core domain logi
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/Moment-Project/Moment.git
+   git clone https://github.com/greenaltambe/Moment.git
    cd Moment
    ```
 

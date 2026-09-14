@@ -443,7 +443,7 @@ Phase 8 hardens Moment against edge-case lifecycle crashes, storage corruption, 
   ```json
   "browser_specific_settings": {
     "gecko": {
-      "id": "moment@moment.local",
+      "id": "moment@greenaltambe.github.io",
       "strict_min_version": "140.0",
       "data_collection_permissions": {
         "required": ["none"]
