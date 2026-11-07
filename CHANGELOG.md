@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+---
+
+## [1.3.0] - 2026-11-07
+
 ### Added — Accent colors
 - Settings → Accent Color: pick an accent separately for the light and the dark appearance from Moment Green, the 9 GNOME accents, or 4 Firefox accents. Colors are auto-adjusted for readable contrast; Calm Sepia keeps its own palette. Included in export/import.
 
