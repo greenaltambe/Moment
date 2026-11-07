@@ -203,11 +203,11 @@ describe('Phase 5 UI: Background CRUD Lifecycle & Engine Synchronization', () =>
       enabled: true,
       createdAt: 1000,
       updatedAt: 1000,
-      dailyLimitMs: 30 * 60 * 1000,
+      dailyLimitMs: null, // no daily limit: pause applies on every visit
       targets: [],
       boundary: {
         schedule: { enabled: false, intervals: [] },
-        limits: { dailyMinutes: 30, sessionMinutes: null },
+        limits: { dailyMinutes: null, sessionMinutes: null },
         pause: { type: 'BREATHE', durationSeconds: 10, requireIntentionText: false },
         action: { type: 'BLOCK_PAGE', redirectUrl: null },
         strictMode: false,

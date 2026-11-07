@@ -16,11 +16,12 @@ import {
 } from '../../core/validation/rules.js';
 import {
   formatDuration,
-  resolveCollectionLimitMs,
+  resolveEffectiveLimitMs,
   getLocalDateKey,
   getUsageRecordKey,
 } from '../../core/usage/accounting.js';
-import { initTheme, applyTheme } from '../theme.js';
+import { ACCENTS, AccentGroup, sanitizeAccentId } from '../../shared/accent.js';
+import { initTheme, applyTheme, setAccentPreferences } from '../theme.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
@@ -215,7 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
     for (const col of colList) {
       const key = getUsageRecordKey(dateKey, col.id);
       const usedMs = usage[key]?.accumulatedMs || 0;
-      const limitMs = resolveCollectionLimitMs(col);
+      const limitMs = resolveEffectiveLimitMs(col, usage[key]?.extendedMs ?? 0);
       if (usedMs > 0 || limitMs !== null) {
         activeStats.push({ col, usedMs, limitMs });
       }
@@ -595,7 +596,8 @@ document.addEventListener('DOMContentLoaded', () => {
     colCustomBlockMessage.value = col?.customBlockMessage || '';
 
     // When Access Expires
-    const whenExp = col?.whenAccessExpires || 'IMMEDIATE';
+    // New collections default to the gentler behavior: the page you are on is not pulled away mid-task.
+    const whenExp = col ? (col.whenAccessExpires || 'IMMEDIATE') : 'NEXT_NAV';
     const whenExpRadio = collectionForm.querySelector<HTMLInputElement>(`input[name="colWhenExpires"][value="${whenExp}"]`);
     if (whenExpRadio) whenExpRadio.checked = true;
 
@@ -1117,7 +1119,12 @@ document.addEventListener('DOMContentLoaded', () => {
       chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }, (res: any) => {
         if (res?.success && res.data) {
           const settings: UserSettings = res.data;
+          setAccentPreferences(settings.accentLight, settings.accentDark);
           applyTheme(settings.theme);
+          for (const [name, value] of [['accentLight', settings.accentLight], ['accentDark', settings.accentDark]] as const) {
+            const accentRadio = tabSettings.querySelector<HTMLInputElement>(`input[name="${name}"][value="${sanitizeAccentId(value)}"]`);
+            if (accentRadio) accentRadio.checked = true;
+          }
           applyReducedMotion(Boolean(settings.reducedMotion));
 
           const themeRadio = tabSettings.querySelector<HTMLInputElement>(`input[name="settingTheme"][value="${settings.theme}"]`);
@@ -1134,6 +1141,67 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   }
+
+  // Accent color swatches (one grid per appearance)
+  const ACCENT_GROUP_LABELS: Record<AccentGroup, string> = {
+    moment: 'Moment',
+    gnome: 'GNOME',
+    firefox: 'Firefox',
+  };
+
+  function buildAccentGrid(container: HTMLElement | null, name: 'accentLight' | 'accentDark') {
+    if (!container) return;
+    (['moment', 'gnome', 'firefox'] as AccentGroup[]).forEach((group) => {
+      const groupEl = document.createElement('div');
+      groupEl.className = 'accent-group';
+      const title = document.createElement('span');
+      title.className = 'accent-group-title';
+      title.textContent = ACCENT_GROUP_LABELS[group];
+      groupEl.appendChild(title);
+
+      const row = document.createElement('div');
+      row.className = 'accent-row';
+      ACCENTS.filter((a) => a.group === group).forEach((a) => {
+        const label = document.createElement('label');
+        label.className = 'accent-swatch';
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.name = name;
+        input.value = a.id;
+        input.setAttribute('aria-label', `${ACCENT_GROUP_LABELS[group]} ${a.label}`);
+        if (a.id === 'moment') input.checked = true;
+        const dot = document.createElement('span');
+        dot.className = 'accent-dot';
+        dot.title = a.label;
+        dot.style.setProperty('--dot', a.hex);
+        const text = document.createElement('span');
+        text.className = 'accent-name';
+        text.textContent = a.label.replace('Firefox ', '');
+        label.append(input, dot, text);
+        row.appendChild(label);
+      });
+      groupEl.appendChild(row);
+      container.appendChild(groupEl);
+    });
+  }
+
+  buildAccentGrid(document.getElementById('accentGridLight'), 'accentLight');
+  buildAccentGrid(document.getElementById('accentGridDark'), 'accentDark');
+
+  function readAccent(name: 'accentLight' | 'accentDark'): string {
+    return tabSettings.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`)?.value || 'moment';
+  }
+
+  function previewAppearance() {
+    setAccentPreferences(readAccent('accentLight'), readAccent('accentDark'));
+    const themeInput = tabSettings.querySelector<HTMLInputElement>('input[name="settingTheme"]:checked');
+    applyTheme(themeInput?.value || 'system');
+  }
+
+  tabSettings.addEventListener('change', (ev) => {
+    const target = ev.target as HTMLInputElement;
+    if (target?.name === 'accentLight' || target?.name === 'accentDark') previewAppearance();
+  });
 
   // Live Theme Switching
   tabSettings.querySelectorAll<HTMLInputElement>('input[name="settingTheme"]').forEach((radio) => {
@@ -1157,6 +1225,8 @@ document.addEventListener('DOMContentLoaded', () => {
         type: 'UPDATE_SETTINGS',
         settings: {
           theme,
+          accentLight: readAccent('accentLight'),
+          accentDark: readAccent('accentDark'),
           timeFormat,
           reducedMotion,
           temporaryUnlockScope,

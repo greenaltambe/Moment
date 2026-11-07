@@ -84,3 +84,28 @@ export function transitionIntervention(
     updatedAt: now,
   };
 }
+
+/**
+ * Minimum time the pause must have been on screen before completion is accepted.
+ * BREATHE is capped because the breathing exercise itself has a fixed length.
+ */
+export function requiredPauseMs(interventionType: string, durationSeconds: number): number {
+  const secs = Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : 0;
+  if (interventionType === 'BREATHE') return Math.min(secs, 10) * 1000;
+  if (interventionType === 'TIMER') return secs * 1000;
+  return 0; // CONFIRM / NONE: no mandatory wait
+}
+
+/**
+ * True when enough time has passed since the pause was presented (with timing tolerance).
+ */
+export function hasPauseElapsed(
+  intervention: PendingIntervention,
+  now: number,
+  toleranceMs: number = 1500
+): boolean {
+  const required = requiredPauseMs(intervention.interventionType, intervention.durationSeconds);
+  if (required <= 0) return true;
+  const start = intervention.presentedAt ?? intervention.createdAt;
+  return now - start >= required - toleranceMs;
+}

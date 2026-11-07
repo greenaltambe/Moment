@@ -8,6 +8,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-16.png">
   <link rel="stylesheet" href="../theme.css">
   <link rel="stylesheet" href="popup.css">
+  <link rel="stylesheet" href="../expressive.css">
 </head>
 <body>
   <div class="popup-container">
@@ -37,8 +38,17 @@
         </div>
         <p id="focusModeScopeText" class="focus-mode-scope">Focusing on selected collections</p>
         <button id="btnEndFocus" class="btn btn-sm btn-outline-danger" type="button">
-          End Focus
+          End early…
         </button>
+        <div id="focusEndPanel" class="focus-end-panel is-hidden">
+          <label for="focusEndReason" class="form-label">Why end early?</label>
+          <textarea id="focusEndReason" class="form-input" rows="2" maxlength="280" placeholder="A short reason"></textarea>
+          <p id="focusEndNote" class="site-meta" aria-live="polite"></p>
+          <div class="drawer-actions">
+            <button id="btnConfirmEndFocus" class="btn btn-sm btn-outline-danger" type="button" disabled>End Focus</button>
+            <button id="btnCancelEndFocus" class="btn btn-sm btn-ghost" type="button">Keep focusing</button>
+          </div>
+        </div>
       </section>
 
       <!-- Temporary Site Pass Active Card -->
@@ -133,6 +143,7 @@
 
             <div class="form-group">
               <label class="form-label">Active Collections</label>
+              <p class="site-meta">Focus applies a collection's pause now, even outside its schedule or while it still has daily time left. Collections that are always on already apply, so they aren't listed.</p>
               <div id="focusCollectionsList" class="focus-collections-list" role="group" aria-label="Collections to restrict during focus">
                 <!-- Checkboxes populated dynamically -->
               </div>

@@ -685,7 +685,8 @@ describe('Phase 5.1.3: Site-Level Post-Intervention Cooldown (SitePass)', () => 
       },
     });
 
-    assert.equal(decision.action, 'INTERVENE');
+    // Budget model: once the daily budget is spent, the collection is blocked
+    assert.equal(decision.action, 'BLOCK');
     assert.equal(decision.reason, 'DAILY_LIMIT_EXHAUSTED');
   });
 

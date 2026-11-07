@@ -382,13 +382,13 @@ describe('Phase 7.1 — Theme Consistency & UI Polish', () => {
       const content = fs.readFileSync(themeCssPath, 'utf8');
 
       // Light/Base tokens
-      assert.ok(content.includes('--bg-main: #f8fafc;'));
-      assert.ok(content.includes('--card-bg: #ffffff;'));
+      assert.ok(content.includes('--bg-main: #f3f7f1;'));
+      assert.ok(content.includes('--card-bg: #fbfdf9;'));
       assert.ok(content.includes('--text-main: #0f172a;'));
 
       // Dark tokens
-      assert.ok(content.includes('--bg-main: #0f172a;'));
-      assert.ok(content.includes('--card-bg: #1e293b;'));
+      assert.ok(content.includes('--bg-main: #101511;'));
+      assert.ok(content.includes('--card-bg: #1a211b;'));
       assert.ok(content.includes('--text-main: #f8fafc;'));
       assert.ok(content.includes('--text-muted: #94a3b8;'));
 

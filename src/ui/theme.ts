@@ -4,6 +4,8 @@
  * and cross-surface storage synchronization.
  */
 
+import { AccentId, computeAccentTokens, getAccentHex, sanitizeAccentId, DEFAULT_ACCENT_ID } from '../shared/accent.js';
+
 declare const chrome: any;
 
 export type ThemeSetting = 'system' | 'light' | 'dark' | 'sepia';
@@ -57,6 +59,39 @@ export function getSystemPrefersDark(): boolean {
 }
 
 let activeSetting: ThemeSetting = 'system';
+let activeAccents: { light: AccentId; dark: AccentId } = { light: DEFAULT_ACCENT_ID, dark: DEFAULT_ACCENT_ID };
+
+const ACCENT_PROPS = ['--accent', '--accent-hover', '--accent-light', '--border-focus', '--on-accent'] as const;
+
+/**
+ * Remembers the per-appearance accent choices (applied on the next applyTheme).
+ */
+export function setAccentPreferences(light: unknown, dark: unknown): void {
+  activeAccents = { light: sanitizeAccentId(light), dark: sanitizeAccentId(dark) };
+}
+
+/**
+ * Applies the accent for the effective appearance as CSS custom properties.
+ * The default accent and the sepia palette use the stylesheet tokens as-is.
+ */
+export function applyAccent(el: HTMLElement | null | undefined, effective: EffectiveTheme): void {
+  const style = (el as any)?.style;
+  if (!style || typeof style.setProperty !== 'function') return;
+
+  const id = effective === 'dark' ? activeAccents.dark : effective === 'light' ? activeAccents.light : DEFAULT_ACCENT_ID;
+  if (id === DEFAULT_ACCENT_ID || effective === 'sepia') {
+    for (const p of ACCENT_PROPS) style.removeProperty(p);
+    return;
+  }
+
+  const t = computeAccentTokens(getAccentHex(id), effective);
+  style.setProperty('--accent', t.accent);
+  style.setProperty('--border-focus', t.accent);
+  style.setProperty('--accent-hover', t.accentHover);
+  style.setProperty('--accent-light', t.accentLight);
+  style.setProperty('--on-accent', t.onAccent);
+}
+
 
 /**
  * Applies the given theme setting to the DOM element (defaults to document.documentElement).
@@ -82,6 +117,7 @@ export function applyTheme(
       targetEl.setAttribute('data-theme', normalizedSetting);
     }
     targetEl.setAttribute('data-effective-theme', effective);
+    applyAccent(targetEl, effective);
   }
 
   return effective;
@@ -107,6 +143,7 @@ export function initTheme(
   if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
     chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }, (res: any) => {
       if (res?.success && res.data?.theme) {
+        setAccentPreferences(res.data.accentLight, res.data.accentDark);
         const effective = applyTheme(res.data.theme);
         if (onThemeChange) onThemeChange(effective, res.data.theme);
       }
@@ -131,7 +168,9 @@ export function initTheme(
   // 4. Listen to storage changes (e.g., user saves a new theme in the Options tab)
   const storageListener = (changes: any, areaName: string) => {
     if (areaName === 'local' && changes.moment_state?.newValue?.settings?.theme) {
-      const newTheme = changes.moment_state.newValue.settings.theme;
+      const newSettings = changes.moment_state.newValue.settings;
+      setAccentPreferences(newSettings.accentLight, newSettings.accentDark);
+      const newTheme = newSettings.theme;
       const effective = applyTheme(newTheme);
       if (onThemeChange) onThemeChange(effective, newTheme);
     }

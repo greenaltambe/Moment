@@ -41,4 +41,6 @@ export interface BrowserAdapter {
   onAlarm(listener: (name: string) => void): () => void;
   getExtensionUrl(path: string): string;
   isIncognitoAccessAllowed(): Promise<boolean>;
+  /** Sets (or clears when text is empty) a per-tab toolbar badge. Best-effort; no-op where unsupported. */
+  setBadge?(tabId: number, text: string): void;
 }

@@ -8,6 +8,8 @@ export interface DailyUsageRecord {
   readonly collectionId: string;
   accumulatedMs: number;
   updatedAt: number; // Epoch timestamp ms
+  extendedMs?: number; // Extra budget granted today via intention-gated extensions
+  extensionCount?: number; // Number of extensions granted today
 }
 
 export interface CollectionUsageBudget {

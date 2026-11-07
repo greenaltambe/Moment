@@ -42,6 +42,7 @@
         "ui/block/block.js",
         "ui/block/block.css",
         "ui/theme.css",
+        "ui/expressive.css",
         "ui/theme.js",
         "shared/urls.js",
         "icons/icon-16.png",

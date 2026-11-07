@@ -298,7 +298,8 @@ describe('Phase 13: Moment Temporary Unlock Scope', () => {
         collections: { col_social: col },
         dailyUsageMs: { col_social: 15 * 60 * 1000 },
       });
-      assert.equal(allowedDecision.reason, 'INTERVENTION_REQUIRED');
+      assert.equal(allowedDecision.action, 'ALLOW');
+      assert.equal(allowedDecision.reason, 'WITHIN_DAILY_BUDGET');
 
       // Daily limit exhausted:
       const exhaustedDecision = engine.evaluate({
@@ -308,6 +309,7 @@ describe('Phase 13: Moment Temporary Unlock Scope', () => {
         collections: { col_social: col },
         dailyUsageMs: { col_social: 31 * 60 * 1000 },
       });
+      assert.equal(exhaustedDecision.action, 'BLOCK');
       assert.equal(exhaustedDecision.reason, 'DAILY_LIMIT_EXHAUSTED');
     });
 

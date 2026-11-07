@@ -10,6 +10,7 @@ import {
   MomentStorageEnvelope,
   UserSettings,
 } from './schema.js';
+import { sanitizeAccentId } from '../shared/accent.js';
 import { Collection } from '../core/models/collection.js';
 
 function isObject(val: unknown): val is Record<string, any> {
@@ -23,6 +24,8 @@ function sanitizeSettings(rawSettings: unknown): UserSettings {
   const theme = ['system', 'light', 'dark', 'sepia'].includes(rawSettings.theme)
     ? rawSettings.theme
     : DEFAULT_USER_SETTINGS.theme;
+  const accentLight = sanitizeAccentId(rawSettings.accentLight);
+  const accentDark = sanitizeAccentId(rawSettings.accentDark);
   const timeFormat = ['12h', '24h'].includes(rawSettings.timeFormat)
     ? rawSettings.timeFormat
     : DEFAULT_USER_SETTINGS.timeFormat;
@@ -36,7 +39,7 @@ function sanitizeSettings(rawSettings: unknown): UserSettings {
     ? rawSettings.temporaryUnlockScope
     : DEFAULT_USER_SETTINGS.temporaryUnlockScope;
 
-  return { theme, timeFormat, reducedMotion, allowPrivateBrowsing, temporaryUnlockScope };
+  return { theme, accentLight, accentDark, timeFormat, reducedMotion, allowPrivateBrowsing, temporaryUnlockScope };
 }
 
 /**
@@ -124,6 +127,12 @@ function sanitizeUsage(rawUsage: unknown): Record<string, any> {
           ? record.accumulatedMs
           : 0,
       updatedAt: typeof record.updatedAt === 'number' ? record.updatedAt : Date.now(),
+      ...(typeof record.extendedMs === 'number' && Number.isFinite(record.extendedMs) && record.extendedMs > 0
+        ? { extendedMs: record.extendedMs }
+        : {}),
+      ...(typeof record.extensionCount === 'number' && Number.isFinite(record.extensionCount) && record.extensionCount > 0
+        ? { extensionCount: Math.floor(record.extensionCount) }
+        : {}),
     };
   }
   return result;

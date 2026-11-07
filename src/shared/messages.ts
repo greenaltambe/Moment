@@ -38,7 +38,10 @@ export type MessageType =
   | 'START_FOCUS_MODE'
   | 'GET_FOCUS_MODE_STATUS'
   | 'END_FOCUS_MODE'
-  | 'END_SITE_PASS';
+  | 'END_SITE_PASS'
+  | 'GET_BUDGET_STATUS'
+  | 'REQUEST_BUDGET_EXTENSION'
+  | 'REQUEST_END_FOCUS_MODE';
 
 export interface BaseMessage {
   readonly type: MessageType;
@@ -92,6 +95,7 @@ export interface RequestIntentPassMessage extends BaseMessage {
   readonly type: 'REQUEST_INTENT_PASS';
   readonly tabId?: number;
   readonly durationMs: number;
+  readonly intentionText?: string;
 }
 
 export interface GetIntentPassStatusMessage extends BaseMessage {
@@ -116,6 +120,7 @@ export interface GetFocusModeStatusMessage extends BaseMessage {
 
 export interface EndFocusModeMessage extends BaseMessage {
   readonly type: 'END_FOCUS_MODE';
+  readonly intentionText?: string;
 }
 
 export interface GetCapabilitiesMessage extends BaseMessage {
@@ -292,7 +297,40 @@ export interface MomentExportPayload {
   readonly settings: UserSettings;
 }
 
+export interface GetBudgetStatusMessage extends BaseMessage {
+  readonly type: 'GET_BUDGET_STATUS';
+  readonly collectionId: string;
+}
+
+export interface RequestBudgetExtensionMessage extends BaseMessage {
+  readonly type: 'REQUEST_BUDGET_EXTENSION';
+  readonly collectionId: string;
+  readonly intentionText: string;
+}
+
+export interface BudgetStatus {
+  readonly collectionId: string;
+  readonly collectionName: string;
+  readonly hasLimit: boolean;
+  readonly usedMs: number;
+  readonly baseLimitMs: number | null;
+  readonly effectiveLimitMs: number | null;
+  readonly isExhausted: boolean;
+  readonly formattedLimit: string | null;
+  readonly extensionMs: number;
+  readonly extensionsUsed: number;
+  readonly extensionsRemaining: number;
+  readonly extensionAllowed: boolean;
+}
+
+export interface RequestEndFocusModeMessage extends BaseMessage {
+  readonly type: 'REQUEST_END_FOCUS_MODE';
+}
+
 export type MomentMessage =
+  | RequestEndFocusModeMessage
+  | GetBudgetStatusMessage
+  | RequestBudgetExtensionMessage
   | GetStateMessage
   | GetCurrentTabMessage
   | GetInterventionMessage
@@ -459,7 +497,8 @@ export function isValidMessage(msg: any): msg is MomentMessage {
       return (
         (msg.tabId === undefined || typeof msg.tabId === 'number') &&
         typeof msg.durationMs === 'number' &&
-        Number.isFinite(msg.durationMs)
+        Number.isFinite(msg.durationMs) &&
+        (msg.intentionText === undefined || typeof msg.intentionText === 'string')
       );
 
     case 'GET_INTENT_PASS_STATUS':
@@ -481,8 +520,21 @@ export function isValidMessage(msg: any): msg is MomentMessage {
       );
 
     case 'GET_FOCUS_MODE_STATUS':
-    case 'END_FOCUS_MODE':
+    case 'REQUEST_END_FOCUS_MODE':
       return true;
+
+    case 'END_FOCUS_MODE':
+      return msg.intentionText === undefined || typeof msg.intentionText === 'string';
+
+    case 'GET_BUDGET_STATUS':
+      return typeof msg.collectionId === 'string' && msg.collectionId.length > 0;
+
+    case 'REQUEST_BUDGET_EXTENSION':
+      return (
+        typeof msg.collectionId === 'string' &&
+        msg.collectionId.length > 0 &&
+        typeof msg.intentionText === 'string'
+      );
 
     default:
       return false;

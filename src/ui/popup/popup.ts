@@ -6,7 +6,8 @@
 import '../../shared/types.js';
 import { CurrentSiteState, TabUsageSummary } from '../../shared/messages.js';
 import { Collection } from '../../core/models/collection.js';
-import { initTheme, applyTheme } from '../theme.js';
+import { isFocusRelevantCollection } from '../../core/focus/focus-validator.js';
+import { initTheme, applyTheme, setAccentPreferences } from '../theme.js';
 
 async function initPopup(): Promise<void> {
   initTheme();
@@ -103,6 +104,7 @@ async function initPopup(): Promise<void> {
     if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
       chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }, (res: any) => {
         if (res?.success && res.data) {
+          setAccentPreferences(res.data.accentLight, res.data.accentDark);
           applyTheme(res.data.theme);
           applyReducedMotion(Boolean(res.data.reducedMotion));
         }
@@ -609,12 +611,21 @@ async function initPopup(): Promise<void> {
   btnOpenFocusSetup.addEventListener('click', async () => {
     const cols = await loadCollections();
     focusCollectionsList.replaceChildren();
-    const colList = Object.values(cols);
+    const allCols = Object.values(cols);
+    const colList = allCols.filter((c) => isFocusRelevantCollection(c));
+    const startBtn = document.getElementById('btnStartFocus') as HTMLButtonElement | null;
+    if (startBtn) startBtn.disabled = colList.length === 0;
 
-    if (colList.length === 0) {
+    if (allCols.length === 0) {
       const p = document.createElement('p');
       p.className = 'site-meta';
       p.textContent = 'No collections yet. Create a collection first.';
+      focusCollectionsList.appendChild(p);
+    } else if (colList.length === 0) {
+      const p = document.createElement('p');
+      p.className = 'site-meta';
+      p.textContent =
+        'All your collections are already active all day, so Focus Mode would not change anything. Give a collection a schedule or a daily limit to use it.';
       focusCollectionsList.appendChild(p);
     } else {
       for (const col of colList) {
@@ -691,21 +702,71 @@ async function initPopup(): Promise<void> {
     }
   });
 
-  // End Focus Action
+  // End Focus early: ask -> short wait + written reason -> confirm
+  const focusEndPanel = document.getElementById('focusEndPanel')!;
+  const focusEndReason = document.getElementById('focusEndReason') as HTMLTextAreaElement;
+  const focusEndNote = document.getElementById('focusEndNote')!;
+  const btnConfirmEndFocus = document.getElementById('btnConfirmEndFocus') as HTMLButtonElement;
+  const btnCancelEndFocus = document.getElementById('btnCancelEndFocus') as HTMLButtonElement;
+  let focusEndTimer: ReturnType<typeof setInterval> | null = null;
+  let focusEndAvailableAt = 0;
+
+  function closeFocusEndPanel() {
+    if (focusEndTimer) clearInterval(focusEndTimer);
+    focusEndTimer = null;
+    focusEndPanel.classList.add('is-hidden');
+    btnEndFocus.classList.remove('is-hidden');
+    focusEndReason.value = '';
+  }
+
+  function syncFocusEndPanel() {
+    const waitSec = Math.ceil(Math.max(0, focusEndAvailableAt - Date.now()) / 1000);
+    const hasReason = focusEndReason.value.trim().length >= 3;
+    focusEndNote.textContent =
+      waitSec > 0 ? `Take a breath. You can end Focus in ${waitSec}s.` : hasReason ? '' : 'Write a short reason to continue.';
+    btnConfirmEndFocus.disabled = !(waitSec === 0 && hasReason);
+  }
+
   btnEndFocus.addEventListener('click', () => {
-    btnEndFocus.disabled = true;
+    if (typeof chrome === 'undefined' || !chrome.runtime?.sendMessage) return;
+    chrome.runtime.sendMessage({ type: 'REQUEST_END_FOCUS_MODE' }, (res: any) => {
+      if (!res?.success) {
+        showStatus(res?.error || 'Could not end Focus session', 'error');
+        return;
+      }
+      if (res.data?.ended) {
+        refreshSiteState();
+        return;
+      }
+      focusEndAvailableAt = res.data.endAvailableAt;
+      btnEndFocus.classList.add('is-hidden');
+      focusEndPanel.classList.remove('is-hidden');
+      syncFocusEndPanel();
+      if (focusEndTimer) clearInterval(focusEndTimer);
+      focusEndTimer = setInterval(syncFocusEndPanel, 250);
+      focusEndReason.focus();
+    });
+  });
+
+  focusEndReason.addEventListener('input', syncFocusEndPanel);
+  btnCancelEndFocus.addEventListener('click', closeFocusEndPanel);
+
+  btnConfirmEndFocus.addEventListener('click', () => {
+    btnConfirmEndFocus.disabled = true;
     showStatus('Ending Focus session...', 'info');
-    if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
-      chrome.runtime.sendMessage({ type: 'END_FOCUS_MODE' }, (res: any) => {
-        btnEndFocus.disabled = false;
+    chrome.runtime.sendMessage(
+      { type: 'END_FOCUS_MODE', intentionText: focusEndReason.value.trim() },
+      (res: any) => {
         if (res?.success) {
+          closeFocusEndPanel();
           showStatus('Focus session ended.', 'success');
           refreshSiteState();
         } else {
           showStatus(res?.error || 'Could not end Focus session', 'error');
+          syncFocusEndPanel();
         }
-      });
-    }
+      }
+    );
   });
 
   // Remove Rule Action

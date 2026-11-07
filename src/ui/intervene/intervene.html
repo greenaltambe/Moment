@@ -8,6 +8,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-16.png">
   <link rel="stylesheet" href="../theme.css">
   <link rel="stylesheet" href="intervene.css">
+  <link rel="stylesheet" href="../expressive.css">
 </head>
 <body>
   <main class="intervention-card" role="region" aria-label="Moment Pause">
@@ -16,6 +17,7 @@
       <span class="brand-title">Moment</span>
     </header>
 
+    <div class="card-body">
     <!-- Dedicated Behavioral Opening Message Layer -->
     <div id="openingMessageBox" class="opening-message-box is-hidden" role="note" aria-label="Pause message">
       <p id="openingMessageText" class="opening-message-text"></p>
@@ -79,29 +81,35 @@
       </div>
     </fieldset>
 
-    <!-- Action Buttons -->
-    <div class="actions">
-      <button id="btnComplete" class="btn btn-primary" disabled aria-disabled="true">Continue</button>
-      <button id="btnCancel" class="btn btn-secondary">Turn Back</button>
-    </div>
-
     <!-- Intent Pass Option -->
     <section class="intent-pass-section" aria-label="Temporary Intent Pass">
       <button id="btnToggleIntentPass" class="intent-pass-toggle" type="button" aria-expanded="false" aria-controls="intentPassOptions">
         Need access right now?
       </button>
       <div id="intentPassOptions" class="intent-pass-options is-hidden">
-        <p class="intent-pass-description">Choose how long you intentionally need this site:</p>
+        <p class="intent-pass-description">Why do you need it right now, and for how long?</p>
+        <label for="intentPassReason" class="dest-label">Your reason</label>
+        <textarea id="intentPassReason" class="intention-input" rows="2" maxlength="280" placeholder="e.g. Check one message from my manager"></textarea>
         <div class="intent-pass-buttons" role="group" aria-label="Intent Pass Durations">
-          <button type="button" class="btn-intent-duration" data-duration="300000" aria-label="Intent Pass for 5 minutes">5 min</button>
-          <button type="button" class="btn-intent-duration" data-duration="900000" aria-label="Intent Pass for 15 minutes">15 min</button>
-          <button type="button" class="btn-intent-duration" data-duration="1800000" aria-label="Intent Pass for 30 minutes">30 min</button>
+          <button type="button" class="btn-intent-duration" data-duration="300000" aria-label="Intent Pass for 5 minutes" disabled>5 min</button>
+          <button type="button" class="btn-intent-duration" data-duration="900000" aria-label="Intent Pass for 15 minutes" disabled>15 min</button>
+          <button type="button" class="btn-intent-duration" data-duration="1800000" aria-label="Intent Pass for 30 minutes" disabled>30 min</button>
         </div>
       </div>
     </section>
 
+    </div>
+
+    <div class="card-footer">
+    <!-- Action Buttons -->
+    <div class="actions">
+      <button id="btnComplete" class="btn btn-primary" disabled aria-disabled="true">Continue</button>
+      <button id="btnCancel" class="btn btn-secondary">Turn Back</button>
+    </div>
+
     <!-- Accessible Status Message -->
     <div id="statusMsg" class="status-msg" role="status" aria-live="polite"></div>
+    </div>
   </main>
 
   <script type="module" src="intervene.js"></script>

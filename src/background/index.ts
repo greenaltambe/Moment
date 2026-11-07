@@ -22,6 +22,7 @@ import {
 import {
   resolveFocusModeDuration,
   isFocusSessionActive,
+  getFocusEndGate,
   filterValidFocusCollectionIds,
 } from '../core/focus/focus-validator.js';
 import { MomentDecisionEngine } from '../core/decisions/engine.js';
@@ -31,14 +32,43 @@ import {
   PendingIntervention,
   canTransition,
   isInterventionExpired,
+  hasPauseElapsed,
   transitionIntervention,
   getRandomLibraryMessage,
 } from '../core/interventions/index.js';
 import { ActiveTimeTracker } from './tracker.js';
-import { getLocalDateKey, validateDailyLimit } from '../core/usage/accounting.js';
+import {
+  buildPassAlarmName,
+  parsePassAlarmName,
+  buildPassWarnAlarmName,
+  parsePassWarnAlarmName,
+} from './alarm-names.js';
+import {
+  getLocalDateKey,
+  validateDailyLimit,
+  resolveEffectiveLimitMs,
+  calculateRemainingBudget,
+  formatDuration,
+} from '../core/usage/accounting.js';
+import {
+  BUDGET_EXTENSION_MS,
+  MAX_BUDGET_EXTENSIONS_PER_DAY,
+  MIN_EXTENSION_INTENTION_LENGTH,
+  MAX_EXTENSION_INTENTION_LENGTH,
+  PAUSE_ELAPSED_TOLERANCE_MS,
+  INTENT_PASS_MIN_WAIT_MS,
+  MIN_INTENT_PASS_REASON_LENGTH,
+  PASS_WARNING_LEAD_MS,
+  BUDGET_WARNING_LEAD_MS,
+  FOCUS_END_WAIT_MS,
+  FOCUS_END_REQUEST_TTL_MS,
+  MIN_FOCUS_END_REASON_LENGTH,
+} from '../shared/constants.js';
+import { BudgetStatus } from '../shared/messages.js';
 import { Collection } from '../core/models/collection.js';
 import { Target } from '../core/models/target.js';
 import { UserSettings } from '../storage/schema.js';
+import { sanitizeAccentId } from '../shared/accent.js';
 import { MomentExportPayload } from '../shared/messages.js';
 import {
   validateCollectionName,
@@ -147,7 +177,10 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
         await storage.updateState((draft) => {
           const current = draft.runtime.pendingInterventions[key];
           if (current && current.status === 'PENDING') {
-            draft.runtime.pendingInterventions[key] = transitionIntervention(current, 'PRESENTED', now);
+            draft.runtime.pendingInterventions[key] = {
+              ...transitionIntervention(current, 'PRESENTED', now),
+              presentedAt: now,
+            };
           }
         });
       }
@@ -268,6 +301,11 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
         if (!canTransition(effectiveStatus, 'COMPLETED')) {
           logger.warn('Replay or illegal transition rejected', { tabId, status: pending.status });
           throw new Error(`Intervention cannot be completed from state '${pending.status}'`);
+        }
+
+        // The pause must really have been on screen (not only enforced by the page's own timer)
+        if (!hasPauseElapsed(pending, now, PAUSE_ELAPSED_TOLERANCE_MS)) {
+          throw new Error('Please finish the pause before continuing.');
         }
 
         // Validate intention text if required by policy
@@ -487,12 +525,7 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
       }
 
       const activeGrants = Object.values(state.runtime.temporaryAccessGrants);
-      const dateKey = getLocalDateKey(new Date(now));
-      const dailyUsageMs: Record<string, number> = {};
-      for (const [colId] of Object.entries(state.collections)) {
-        const usageKey = `${dateKey}:${colId}`;
-        dailyUsageMs[colId] = state.usage[usageKey]?.accumulatedMs || 0;
-      }
+      const { dailyUsageMs, dailyExtensionMs } = buildUsageMaps(state, now);
 
       const decision = engine.evaluate({
         url: targetTab.url,
@@ -501,6 +534,7 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
         collections: state.collections,
         activeGrants,
         dailyUsageMs,
+        dailyExtensionMs,
         focusSession: state.runtime.focusSession,
       });
 
@@ -846,6 +880,17 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
           ? settings.theme
           : 'system';
       }
+      if (settings.accentLight !== undefined) {
+        sanitizedSettings.accentLight = sanitizeAccentId(settings.accentLight);
+      }
+      if (settings.accentDark !== undefined) {
+        sanitizedSettings.accentDark = sanitizeAccentId(settings.accentDark);
+      }
+      if (settings.temporaryUnlockScope !== undefined) {
+        sanitizedSettings.temporaryUnlockScope = ['THIS_TAB_ONLY', 'ALL_TABS_UNTIL_EXPIRATION'].includes(settings.temporaryUnlockScope)
+          ? settings.temporaryUnlockScope
+          : 'THIS_TAB_ONLY';
+      }
       if (settings.timeFormat !== undefined) {
         sanitizedSettings.timeFormat = ['12h', '24h'].includes(settings.timeFormat)
           ? settings.timeFormat
@@ -940,6 +985,13 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
       const state = await storage.getState();
       const durationMs = resolveIntentPassDuration(message.durationMs);
 
+      if ((message.intentionText ?? '').trim().length < MIN_INTENT_PASS_REASON_LENGTH) {
+        return {
+          success: false,
+          error: 'Please write a short reason for needing access.',
+        };
+      }
+
       // Check if there is a pending intervention for this tab
       const pending = state.runtime.pendingInterventions?.[key];
 
@@ -949,6 +1001,13 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
       let matchedRuleId: string | null = null;
 
       if (pending) {
+        const waited = now - (pending.presentedAt ?? pending.createdAt);
+        if (pending.interventionType !== 'CONFIRM' && waited < INTENT_PASS_MIN_WAIT_MS) {
+          return {
+            success: false,
+            error: 'Take a moment first. You can request access in a few seconds.',
+          };
+        }
         targetUrl = pending.targetUrl;
         targetCollectionId = pending.collectionId;
         matchedRuleId = pending.matchedRuleId || null;
@@ -960,14 +1019,7 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
         // Verify target is still blocked or restricted under current policy
         if (targetUrl) {
           const activeGrants = Object.values(state.runtime.temporaryAccessGrants || {});
-          const dateKey = getLocalDateKey(new Date(now));
-          const dailyUsageMs: Record<string, number> = {};
-          for (const record of Object.values(state.usage || {})) {
-            if (record.dateKey === dateKey) {
-              dailyUsageMs[record.collectionId] = record.accumulatedMs;
-              dailyUsageMs[`${dateKey}:${record.collectionId}`] = record.accumulatedMs;
-            }
-          }
+          const { dailyUsageMs, dailyExtensionMs } = buildUsageMaps(state, now);
           engine.setCollections(state.collections);
           const currentDecision = engine.evaluate({
             url: targetUrl,
@@ -976,9 +1028,11 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
             activeGrants,
             collections: state.collections,
             dailyUsageMs,
+            dailyExtensionMs,
             focusSession: state.runtime.focusSession,
           });
-          if (currentDecision.action === 'ALLOW') {
+          if (currentDecision.action === 'ALLOW' || currentDecision.reason === 'DAILY_LIMIT_EXHAUSTED') {
+            // Not restricted, or the daily budget is spent (time budgets can't be bypassed with an Intent Pass)
             targetUrl = null;
           }
         }
@@ -1000,14 +1054,7 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
 
           if (candidateUrl && (candidateUrl.startsWith('http://') || candidateUrl.startsWith('https://'))) {
             const activeGrants = Object.values(state.runtime.temporaryAccessGrants || {});
-            const dateKey = getLocalDateKey(new Date(now));
-            const dailyUsageMs: Record<string, number> = {};
-            for (const record of Object.values(state.usage || {})) {
-              if (record.dateKey === dateKey) {
-                dailyUsageMs[record.collectionId] = record.accumulatedMs;
-                dailyUsageMs[`${dateKey}:${record.collectionId}`] = record.accumulatedMs;
-              }
-            }
+            const { dailyUsageMs, dailyExtensionMs } = buildUsageMaps(state, now);
 
             engine.setCollections(state.collections);
             const decision = engine.evaluate({
@@ -1017,10 +1064,11 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
               activeGrants,
               collections: state.collections,
               dailyUsageMs,
+              dailyExtensionMs,
               focusSession: state.runtime.focusSession,
             });
 
-            if (decision.action === 'BLOCK' || decision.action === 'INTERVENE') {
+            if ((decision.action === 'BLOCK' || decision.action === 'INTERVENE') && decision.reason !== 'DAILY_LIMIT_EXHAUSTED') {
               targetUrl = candidateUrl;
               targetCollectionId = decision.collectionId || '';
               matchedRuleId = decision.matchedRuleId || null;
@@ -1041,6 +1089,14 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
         return {
           success: false,
           error: 'Intent Pass can only be requested for blocked or restricted destinations.',
+        };
+      }
+
+      const intentCollection = state.collections[targetCollectionId];
+      if (intentCollection && (intentCollection.boundary?.strictMode || intentCollection.boundary?.pause?.type === 'NONE')) {
+        return {
+          success: false,
+          error: 'This collection uses Strict Block; Intent Passes are not available.',
         };
       }
 
@@ -1251,7 +1307,24 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
 
       await storage.updateState((draft) => {
         draft.runtime.focusSession = session;
+
+        // Starting Focus Mode ends temporary access on the focused collections.
+        const selected = new Set<string>(validCollectionIds);
+        for (const [passKey, pass] of Object.entries(draft.runtime.sitePasses || {})) {
+          const col = engine.resolveMatchingCollection(`https://${pass.site}/`, now, draft.collections, session);
+          if (col && selected.has(col.id)) delete draft.runtime.sitePasses[passKey];
+        }
+        for (const [passKey, pass] of Object.entries(draft.runtime.intentPasses || {})) {
+          if (selected.has(pass.collectionId)) delete draft.runtime.intentPasses[passKey];
+        }
       });
+
+      // Apply it right away to pages that are already open (not only to the next navigation).
+      for (const openTab of await adapter.getAllTabs()) {
+        if (openTab.url && (openTab.url.startsWith('http://') || openTab.url.startsWith('https://'))) {
+          await evaluateAndEnforceNavigation(openTab.id, openTab.url, 'RECONCILIATION');
+        }
+      }
 
       logger.info('Focus Mode session started', {
         id: session.id,
@@ -1296,7 +1369,43 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
       };
     }
 
+    case 'REQUEST_END_FOCUS_MODE': {
+      const result = { active: false, endAvailableAt: 0 };
+      await storage.updateState((draft) => {
+        const current = draft.runtime.focusSession;
+        if (!current || !isFocusSessionActive(current, now)) return;
+        result.active = true;
+        const previous = current.endRequestedAt;
+        const stillFresh = typeof previous === 'number' && now - previous <= FOCUS_END_REQUEST_TTL_MS;
+        const requestedAt = stillFresh ? (previous as number) : now;
+        draft.runtime.focusSession = { ...current, endRequestedAt: requestedAt };
+        result.endAvailableAt = requestedAt + FOCUS_END_WAIT_MS;
+      });
+      if (!result.active) {
+        return { success: true, data: { ended: true } };
+      }
+      return {
+        success: true,
+        data: { endAvailableAt: result.endAvailableAt, waitMs: Math.max(0, result.endAvailableAt - now) },
+      };
+    }
+
     case 'END_FOCUS_MODE': {
+      const current = (await storage.getState()).runtime.focusSession;
+      if (current && isFocusSessionActive(current, now)) {
+        if ((message.intentionText ?? '').trim().length < MIN_FOCUS_END_REASON_LENGTH) {
+          return { success: false, error: 'Please write a short reason for ending Focus early.' };
+        }
+        const gate = getFocusEndGate(current, now);
+        if (!gate.allowed) {
+          return {
+            success: false,
+            error: gate.needsRequest
+              ? 'Ask to end Focus first, then wait a few seconds.'
+              : `Take a moment first. You can end Focus in ${Math.ceil(gate.waitMs / 1000)}s.`,
+          };
+        }
+      }
       await storage.updateState((draft) => {
         draft.runtime.focusSession = null;
       });
@@ -1304,10 +1413,164 @@ async function handleMessage(message: MomentMessage, _sender: any): Promise<any>
       return { success: true };
     }
 
+    case 'GET_BUDGET_STATUS': {
+      const state = await storage.getState();
+      const col = state.collections[message.collectionId];
+      if (!col) {
+        return { success: false, error: 'Collection not found' };
+      }
+      return { success: true, data: getBudgetStatus(col, state, now) };
+    }
+
+    case 'REQUEST_BUDGET_EXTENSION': {
+      const intention = message.intentionText.trim();
+      if (intention.length < MIN_EXTENSION_INTENTION_LENGTH) {
+        return { success: false, error: 'Please write a short intention (at least a few characters).' };
+      }
+      if (intention.length > MAX_EXTENSION_INTENTION_LENGTH) {
+        return { success: false, error: 'Intention is too long.' };
+      }
+
+      let granted: BudgetStatus | null = null;
+      await storage.updateState((draft) => {
+        const col = draft.collections[message.collectionId];
+        if (!col) throw new Error('Collection not found');
+        const before = getBudgetStatus(col, draft, now);
+        if (!before.hasLimit) throw new Error('This collection has no daily limit.');
+        if (!before.isExhausted) throw new Error('Your daily budget is not used up yet.');
+        if (!before.extensionAllowed) {
+          throw new Error(
+            before.extensionsRemaining <= 0
+              ? 'No extensions left for today.'
+              : 'Extensions are not available for this collection.'
+          );
+        }
+        const dateKey = getLocalDateKey(new Date(now));
+        const usageKey = `${dateKey}:${col.id}`;
+        const record = draft.usage[usageKey] ?? {
+          dateKey,
+          collectionId: col.id,
+          accumulatedMs: 0,
+          updatedAt: now,
+        };
+        record.extendedMs = (record.extendedMs ?? 0) + BUDGET_EXTENSION_MS;
+        record.extensionCount = (record.extensionCount ?? 0) + 1;
+        record.updatedAt = now;
+        draft.usage[usageKey] = record;
+        // The intention text is deliberately NOT stored (privacy); it only gates the request.
+        granted = getBudgetStatus(col, draft, now);
+      });
+
+      logger.info('Budget extension granted', { collectionId: message.collectionId });
+      return { success: true, data: granted };
+    }
+
     default:
       return { success: false, error: 'Unhandled message type' };
   }
 }
+
+// ---- Daily budget helpers -------------------------------------------------------------
+
+function buildUsageMaps(
+  state: { usage?: Record<string, any> },
+  now: number
+): { dailyUsageMs: Record<string, number>; dailyExtensionMs: Record<string, number> } {
+  const dateKey = getLocalDateKey(new Date(now));
+  const dailyUsageMs: Record<string, number> = {};
+  const dailyExtensionMs: Record<string, number> = {};
+  for (const record of Object.values(state.usage || {})) {
+    if (record && record.dateKey === dateKey) {
+      dailyUsageMs[record.collectionId] = record.accumulatedMs;
+      dailyUsageMs[`${dateKey}:${record.collectionId}`] = record.accumulatedMs;
+      if (record.extendedMs) dailyExtensionMs[record.collectionId] = record.extendedMs;
+    }
+  }
+  return { dailyUsageMs, dailyExtensionMs };
+}
+
+function getBudgetStatus(
+  col: Collection,
+  state: { usage?: Record<string, any> },
+  now: number
+): BudgetStatus {
+  const dateKey = getLocalDateKey(new Date(now));
+  const record = state.usage?.[`${dateKey}:${col.id}`];
+  const usedMs: number = record?.accumulatedMs ?? 0;
+  const extendedMs: number = record?.extendedMs ?? 0;
+  const extensionsUsed: number = record?.extensionCount ?? 0;
+  const effectiveLimitMs = resolveEffectiveLimitMs(col, extendedMs);
+  const baseLimitMs = resolveEffectiveLimitMs(col, 0);
+  const { isExhausted } = calculateRemainingBudget(usedMs, effectiveLimitMs);
+  const extensionsRemaining = Math.max(0, MAX_BUDGET_EXTENSIONS_PER_DAY - extensionsUsed);
+  const isStrict = Boolean(col.boundary?.strictMode) || col.boundary?.pause?.type === 'NONE';
+  return {
+    collectionId: col.id,
+    collectionName: col.name,
+    hasLimit: effectiveLimitMs !== null,
+    usedMs,
+    baseLimitMs,
+    effectiveLimitMs,
+    isExhausted,
+    formattedLimit: baseLimitMs !== null ? formatDuration(baseLimitMs) : null,
+    extensionMs: BUDGET_EXTENSION_MS,
+    extensionsUsed,
+    extensionsRemaining,
+    extensionAllowed: effectiveLimitMs !== null && !isStrict && extensionsRemaining > 0,
+  };
+}
+
+function isBudgetExhaustedForUrl(url: string, state: any, now: number): boolean {
+  const col = engine.resolveMatchingCollection(url, now, state.collections, state.runtime?.focusSession);
+  if (!col) return false;
+  return getBudgetStatus(col, state, now).isExhausted;
+}
+
+const BUDGET_ALARM_NAME = 'budget_check';
+
+/**
+ * Called after each usage checkpoint (and by the budget alarm). If the active collection's
+ * daily budget is used up, re-enforce every open tab; otherwise schedule a wake-up for the
+ * moment the budget is projected to run out so an already-open page is not left running.
+ */
+async function enforceBudgetForActiveCollection(): Promise<void> {
+  const activeCollectionId = tracker.getState().activeCollectionId;
+  if (!activeCollectionId) return;
+
+  const state = await storage.getState();
+  const col = state.collections[activeCollectionId];
+  if (!col) return;
+
+  const now = Date.now();
+  const status = getBudgetStatus(col, state, now);
+  if (!status.hasLimit) return;
+
+  if (!status.isExhausted) {
+    const remainingMs = Math.max(0, (status.effectiveLimitMs ?? 0) - status.usedMs);
+    adapter.createAlarm(BUDGET_ALARM_NAME, { when: now + remainingMs + 1000 });
+    const activeTabId = tracker.getState().activeTabId;
+    if (activeTabId !== null) {
+      adapter.setBadge?.(
+        activeTabId,
+        remainingMs <= BUDGET_WARNING_LEAD_MS ? `${Math.max(1, Math.ceil(remainingMs / 60000))}m` : ''
+      );
+    }
+    return;
+  }
+
+  const tabs = await adapter.getAllTabs();
+  for (const tab of tabs) {
+    if (tab.url && (tab.url.startsWith('http://') || tab.url.startsWith('https://'))) {
+      await evaluateAndEnforceNavigation(tab.id, tab.url, 'RECONCILIATION');
+    }
+  }
+}
+
+tracker.onFlushed = () => {
+  enforceBudgetForActiveCollection().catch((err) =>
+    logger.error('Budget enforcement failed', { error: err.message })
+  );
+};
 
 // Pass Expiration Scheduling & Re-evaluation
 function schedulePassExpiration(tabId: number, passType: 'INTENT_PASS' | 'SITE_PASS', expiresAt: number): void {
@@ -1315,8 +1578,19 @@ function schedulePassExpiration(tabId: number, passType: 'INTENT_PASS' | 'SITE_P
   const delay = Math.max(0, expiresAt - now);
 
   // 1. Alarm for service worker lifecycle resilience
-  const alarmName = `pass_expire_${passType}_${tabId}_${expiresAt}`;
+  const alarmName = buildPassAlarmName(passType, tabId, expiresAt);
   adapter.createAlarm(alarmName, { when: expiresAt });
+
+  // 1b. Heads-up shortly before the pass ends (toolbar badge; no extra permissions)
+  const warnAt = expiresAt - PASS_WARNING_LEAD_MS;
+  if (warnAt > now) {
+    adapter.createAlarm(buildPassWarnAlarmName(passType, tabId, expiresAt), { when: warnAt });
+    if (warnAt - now < 2147483647) {
+      setTimeout(() => {
+        showPassWarning(tabId, expiresAt).catch(() => {});
+      }, warnAt - now);
+    }
+  }
 
   // 2. In-memory timer for immediate precision when worker is active
   if (delay < 2147483647) {
@@ -1325,6 +1599,27 @@ function schedulePassExpiration(tabId: number, passType: 'INTENT_PASS' | 'SITE_P
         logger.error('Error executing checkPassExpiration timeout', { error: err.message, tabId })
       );
     }, delay + 50);
+  }
+}
+
+/** Shows a "1m" badge on tab(s) covered by a pass that is about to expire. */
+async function showPassWarning(tabId: number, expiresAt: number): Promise<void> {
+  const state = await storage.getState();
+  const key = String(tabId);
+  const sitePass = state.runtime.sitePasses?.[key];
+  const intentPass = state.runtime.intentPasses?.[key];
+  const stillScheduled =
+    (sitePass && sitePass.expiresAt === expiresAt) || (intentPass && intentPass.expiresAt === expiresAt);
+  if (!stillScheduled) return;
+
+  adapter.setBadge?.(tabId, '1m');
+  if (sitePass && sitePass.expiresAt === expiresAt && sitePass.scope === 'ALL_TABS_UNTIL_EXPIRATION') {
+    const now = Date.now();
+    for (const tab of await adapter.getAllTabs()) {
+      if (tab.url && isSitePassValidForNavigation(sitePass, tab.id, tab.url, now)) {
+        adapter.setBadge?.(tab.id, '1m');
+      }
+    }
   }
 }
 
@@ -1367,6 +1662,8 @@ async function checkPassExpiration(tabId: number): Promise<void> {
     // Inspect the originating tab
     const tab = await adapter.getTab(tabId);
 
+    adapter.setBadge?.(tabId, '');
+
     // Prune the expired pass(es) from storage atomically
     await storage.updateState((draft) => {
       if (isIntentExpired && draft.runtime.intentPasses?.[key]?.id === intentPass?.id) {
@@ -1383,6 +1680,7 @@ async function checkPassExpiration(tabId: number): Promise<void> {
       for (const openTab of allTabs) {
         if (openTab.url && (openTab.url.startsWith('http://') || openTab.url.startsWith('https://'))) {
           if (isSitePassValidForNavigation(sitePass, openTab.id, openTab.url, sitePass.expiresAt - 1)) {
+            adapter.setBadge?.(openTab.id, '');
             const matchingCol = engine.resolveMatchingCollection(
               openTab.url,
               now,
@@ -1445,9 +1743,12 @@ async function evaluateAndEnforceNavigation(
     const now = Date.now();
     const key = String(tabId);
 
+    // A spent daily budget outranks any previously granted pass or grant.
+    const budgetExhausted = isBudgetExhaustedForUrl(url, state, now);
+
     // Step 2: Check TemporaryAccessGrant for immediate destination authorization
     const currentGrant = state.runtime.temporaryAccessGrants?.[key];
-    if (currentGrant && isGrantValidForNavigation(currentGrant, tabId, url, now)) {
+    if (!budgetExhausted && currentGrant && isGrantValidForNavigation(currentGrant, tabId, url, now)) {
       if (source === 'COMMITTED' && currentGrant.singleUse) {
         logger.info('Consuming single-use grant upon navigation commit', {
           tabId,
@@ -1466,7 +1767,7 @@ async function evaluateAndEnforceNavigation(
 
     // Step 3: Check IntentPass for tab + target deliberate temporary access
     const intentPass = state.runtime.intentPasses?.[key];
-    if (intentPass) {
+    if (intentPass && !budgetExhausted) {
       if (isIntentPassValidForNavigation(intentPass, tabId, url, now)) {
         return true;
       } else if (now >= intentPass.expiresAt) {
@@ -1480,7 +1781,7 @@ async function evaluateAndEnforceNavigation(
     }
 
     // Step 4: Check SitePass for tab + site post-intervention cooldown (including cross-tab if enabled)
-    const validSitePass = findValidSitePass(state.runtime.sitePasses, tabId, url, now);
+    const validSitePass = budgetExhausted ? null : findValidSitePass(state.runtime.sitePasses, tabId, url, now);
     if (validSitePass) {
       return true;
     }
@@ -1511,14 +1812,7 @@ async function evaluateAndEnforceNavigation(
       return grant.expiresAt > now;
     });
 
-    const dateKey = getLocalDateKey(new Date(now));
-    const dailyUsageMs: Record<string, number> = {};
-    for (const record of Object.values(state.usage || {})) {
-      if (record.dateKey === dateKey) {
-        dailyUsageMs[record.collectionId] = record.accumulatedMs;
-        dailyUsageMs[`${dateKey}:${record.collectionId}`] = record.accumulatedMs;
-      }
-    }
+    const { dailyUsageMs, dailyExtensionMs } = buildUsageMaps(state, now);
 
     engine.setCollections(state.collections);
     const decision = engine.evaluate({
@@ -1528,6 +1822,7 @@ async function evaluateAndEnforceNavigation(
       activeGrants,
       collections: state.collections,
       dailyUsageMs,
+      dailyExtensionMs,
       focusSession: activeFocusSession,
     });
 
@@ -1536,8 +1831,8 @@ async function evaluateAndEnforceNavigation(
       return true;
     }
 
-    // Phase 1 test hook compatibility: if not /moment-test-target and allowed by policy, permit navigation
-    if (decision.action === 'ALLOW' && !url.includes('/moment-test-target')) {
+    // Allowed by policy (no matching restriction, exception rule, or inactive schedule)
+    if (decision.action === 'ALLOW') {
       return true;
     }
 
@@ -1553,7 +1848,7 @@ async function evaluateAndEnforceNavigation(
         source,
       });
       const blockUrl = adapter.getExtensionUrl(
-        `ui/block/block.html?target=${encodeURIComponent(url)}&collection=${encodeURIComponent(
+        `ui/block/block.html?target=${encodeURIComponent(url)}&reason=${encodeURIComponent(decision.reason)}&collection=${encodeURIComponent(
           decision.collectionId || ''
         )}&collectionName=${encodeURIComponent(
           collection?.name || ''
@@ -1642,12 +1937,20 @@ adapter.onHistoryStateUpdated(async (details) => {
 // Alarm Listener: Handles scheduled pass expiration events
 adapter.onAlarm(async (alarmName) => {
   try {
-    if (alarmName.startsWith('pass_expire_')) {
-      const parts = alarmName.split('_');
-      const tabId = parseInt(parts[3], 10);
-      if (!isNaN(tabId)) {
-        await checkPassExpiration(tabId);
-      }
+    if (alarmName === BUDGET_ALARM_NAME) {
+      await tracker.flush();
+      await enforceBudgetForActiveCollection();
+      return;
+    }
+    const warnAlarm = parsePassWarnAlarmName(alarmName);
+    if (warnAlarm) {
+      await showPassWarning(warnAlarm.tabId, warnAlarm.expiresAt);
+      await adapter.clearAlarm(alarmName);
+      return;
+    }
+    const parsedAlarm = parsePassAlarmName(alarmName);
+    if (parsedAlarm) {
+      await checkPassExpiration(parsedAlarm.tabId);
       await adapter.clearAlarm(alarmName);
     }
   } catch (err: any) {

@@ -21,7 +21,7 @@ export interface CanonicalUrl {
  *
  * Rules:
  * - Only standard 'http:' and 'https:' protocols are permitted.
- * - Hostnames are normalized to lowercase.
+ * - Hostnames are normalized to lowercase and trailing root dots are removed.
  * - Subdomains ('www.', 'm.', 'mobile.') are strictly preserved.
  * - Default ports (80 for HTTP, 443 for HTTPS) are normalized to empty string.
  * - Explicit non-default ports (e.g. 8080) are preserved.
@@ -45,7 +45,12 @@ export function parseCanonicalUrl(rawUrl: string | null | undefined): CanonicalU
   }
 
   const protocol = parsed.protocol as 'http:' | 'https:';
-  const hostname = parsed.hostname.toLowerCase();
+  // Strip trailing root dots: 'example.com.' is the same site as 'example.com' but the
+  // WHATWG parser keeps the dot, which would otherwise let users bypass every host rule.
+  const hostname = parsed.hostname.toLowerCase().replace(/\.+$/, '');
+  if (hostname.length === 0) {
+    return null;
+  }
 
   // Normalize default ports
   let port = parsed.port;

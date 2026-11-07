@@ -21,6 +21,7 @@ export type DecisionReason =
   | 'SCHEDULE_ACTIVE'
   | 'SCHEDULE_INACTIVE'
   | 'DAILY_LIMIT_EXHAUSTED'
+  | 'WITHIN_DAILY_BUDGET'
   | 'INTERVENTION_REQUIRED'
   | 'MANUAL_OVERRIDE';
 
@@ -54,6 +55,7 @@ export interface DecisionRequest {
   readonly activeGrants: readonly TemporaryAccessGrant[];
   readonly collections?: Record<string, Collection> | readonly Collection[];
   readonly dailyUsageMs?: Record<string, number>;
+  readonly dailyExtensionMs?: Record<string, number>; // Extra budget granted today, keyed by collectionId
   readonly focusSession?: FocusSession | null;
 }
 

@@ -20,7 +20,7 @@ import {
   splitIntervalAtMidnight,
   getUsageRecordKey,
   getLocalDateKey,
-  resolveCollectionLimitMs,
+  resolveEffectiveLimitMs,
   calculateRemainingBudget,
   formatDuration,
 } from '../core/usage/accounting.js';
@@ -41,6 +41,9 @@ export class ActiveTimeTracker {
     activeCollectionId: null,
     lastCheckpointTimestamp: null,
   };
+
+  /** Invoked (fire-and-forget) after usage has been checkpointed for a collection. */
+  onFlushed: ((collectionId: string) => void) | null = null;
 
   private unsubs: Array<() => void> = [];
   private periodicInterval: any = null;
@@ -177,6 +180,14 @@ export class ActiveTimeTracker {
             lastCheckpointTimestamp: now,
           };
         });
+
+        if (this.onFlushed) {
+          try {
+            this.onFlushed(activeCollectionId);
+          } catch (err: any) {
+            this.logger.error('onFlushed hook failed', { error: err?.message });
+          }
+        }
       }
     }
 
@@ -338,7 +349,7 @@ export class ActiveTimeTracker {
     const dateKey = getLocalDateKey(new Date(now));
     const usageKey = getUsageRecordKey(dateKey, matchingCol.id);
     const usedMs = storedState.usage[usageKey]?.accumulatedMs || 0;
-    const limitMs = resolveCollectionLimitMs(matchingCol);
+    const limitMs = resolveEffectiveLimitMs(matchingCol, storedState.usage[usageKey]?.extendedMs ?? 0);
     const { remainingMs, isExhausted } = calculateRemainingBudget(usedMs, limitMs);
 
     return {
@@ -370,7 +381,7 @@ export class ActiveTimeTracker {
     const dateKey = getLocalDateKey(new Date(now));
     const usageKey = getUsageRecordKey(dateKey, collection.id);
     const usedMs = storedState.usage[usageKey]?.accumulatedMs || 0;
-    const limitMs = resolveCollectionLimitMs(collection);
+    const limitMs = resolveEffectiveLimitMs(collection, storedState.usage[usageKey]?.extendedMs ?? 0);
     const { remainingMs, isExhausted } = calculateRemainingBudget(usedMs, limitMs);
 
     return {

@@ -341,7 +341,7 @@ describe('Moment Production Decision Engine (Phase 2)', () => {
         },
       });
 
-      assert.equal(decision.action, 'INTERVENE');
+      assert.equal(decision.action, 'BLOCK');
       assert.equal(decision.reason, 'DAILY_LIMIT_EXHAUSTED');
       assert.equal(decision.matchedRuleId, 't_reddit');
       assert.equal(decision.collectionId, 'col_limited');
@@ -430,8 +430,9 @@ describe('Moment Production Decision Engine (Phase 2)', () => {
         },
       });
 
-      assert.equal(decision.action, 'INTERVENE');
-      assert.equal(decision.reason, 'INTERVENTION_REQUIRED');
+      // Budget model: free access while under the daily limit
+      assert.equal(decision.action, 'ALLOW');
+      assert.equal(decision.reason, 'WITHIN_DAILY_BUDGET');
     });
 
     it('Phase 4.1 Audit 1 Invariant: Broad exception + more-specific restriction under limited collection -> restriction wins', () => {
@@ -462,8 +463,8 @@ describe('Moment Production Decision Engine (Phase 2)', () => {
         activeGrants: [],
         dailyUsageMs: { col_audit_1: 15 * 60 * 1000 },
       });
-      assert.equal(decRestrictedUnderLimit.action, 'INTERVENE');
-      assert.equal(decRestrictedUnderLimit.reason, 'INTERVENTION_REQUIRED');
+      assert.equal(decRestrictedUnderLimit.action, 'ALLOW');
+      assert.equal(decRestrictedUnderLimit.reason, 'WITHIN_DAILY_BUDGET');
       assert.equal(decRestrictedUnderLimit.matchedRuleId, 't_specific_restriction');
 
       // When daily limit IS exhausted -> INTERVENE (DAILY_LIMIT_EXHAUSTED)
@@ -474,7 +475,7 @@ describe('Moment Production Decision Engine (Phase 2)', () => {
         activeGrants: [],
         dailyUsageMs: { col_audit_1: 35 * 60 * 1000 },
       });
-      assert.equal(decRestrictedExhausted.action, 'INTERVENE');
+      assert.equal(decRestrictedExhausted.action, 'BLOCK');
       assert.equal(decRestrictedExhausted.reason, 'DAILY_LIMIT_EXHAUSTED');
       assert.equal(decRestrictedExhausted.matchedRuleId, 't_specific_restriction');
 
@@ -528,7 +529,7 @@ describe('Moment Production Decision Engine (Phase 2)', () => {
         },
       });
 
-      assert.equal(expiredDecision.action, 'INTERVENE');
+      assert.equal(expiredDecision.action, 'BLOCK');
       assert.equal(expiredDecision.reason, 'DAILY_LIMIT_EXHAUSTED');
       assert.equal(expiredDecision.collectionId, 'col_limited');
     });

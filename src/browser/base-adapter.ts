@@ -234,6 +234,20 @@ export abstract class BaseBrowserAdapter implements BrowserAdapter {
     return this.api.runtime.getURL(cleanPath);
   }
 
+  setBadge(tabId: number, text: string): void {
+    try {
+      const action = this.api?.action ?? this.api?.browserAction;
+      if (!action?.setBadgeText || tabId < 0) return;
+      const swallow = () => void this.api?.runtime?.lastError;
+      action.setBadgeText({ tabId, text }, swallow);
+      if (text && action.setBadgeBackgroundColor) {
+        action.setBadgeBackgroundColor({ tabId, color: '#b45309' }, swallow);
+      }
+    } catch {
+      // Badges are a courtesy; never let them break enforcement.
+    }
+  }
+
   async isIncognitoAccessAllowed(): Promise<boolean> {
     if (!this.api?.extension?.isAllowedIncognitoAccess) return false;
     return new Promise((resolve) => {

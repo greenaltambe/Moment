@@ -9,6 +9,7 @@ import { OpeningMessageMode, MessageIntensity, WhenAccessExpires } from '../mode
 import { validateGlobPattern } from '../matching/glob.js';
 import { MomentExportPayload } from '../../shared/messages.js';
 import { CURRENT_SCHEMA_VERSION } from '../../storage/schema.js';
+import { sanitizeAccentId } from '../../shared/accent.js';
 import { validateDailyLimit } from '../usage/accounting.js';
 
 export interface ValidationResult<T = string> {
@@ -532,6 +533,8 @@ export function validateImportPayload(
     theme: ['system', 'light', 'dark', 'sepia'].includes(payload.settings?.theme)
       ? payload.settings.theme
       : 'system',
+    accentLight: sanitizeAccentId(payload.settings?.accentLight),
+    accentDark: sanitizeAccentId(payload.settings?.accentDark),
     timeFormat: ['12h', '24h'].includes(payload.settings?.timeFormat)
       ? payload.settings.timeFormat
       : '24h',

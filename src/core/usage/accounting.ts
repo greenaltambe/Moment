@@ -129,6 +129,20 @@ export function resolveCollectionLimitMs(collection: {
 }
 
 /**
+ * Effective daily limit = configured limit + extra time granted today via extensions.
+ * Returns null when the collection has no daily limit.
+ */
+export function resolveEffectiveLimitMs(
+  collection: Parameters<typeof resolveCollectionLimitMs>[0],
+  extendedMs: number = 0
+): number | null {
+  const base = resolveCollectionLimitMs(collection);
+  if (base === null) return null;
+  const extra = typeof extendedMs === 'number' && Number.isFinite(extendedMs) ? Math.max(0, extendedMs) : 0;
+  return base + extra;
+}
+
+/**
  * Computes remaining budget and exhaustion status from used time and configured limit.
  */
 export function calculateRemainingBudget(

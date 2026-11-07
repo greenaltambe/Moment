@@ -8,6 +8,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-16.png">
   <link rel="stylesheet" href="../theme.css">
   <link rel="stylesheet" href="options.css">
+  <link rel="stylesheet" href="../expressive.css">
 </head>
 <body>
   <div class="dashboard-layout">
@@ -101,6 +102,20 @@
                 <input type="radio" name="settingTheme" value="sepia">
                 <span>Calm Sepia</span>
               </label>
+            </div>
+          </div>
+
+          <!-- Accent Color Setting -->
+          <div class="settings-card settings-card-wide">
+            <h3>Accent Color</h3>
+            <p class="card-desc">Choose an accent for each appearance, so light and dark can use different colors. Calm Sepia keeps its own palette. Colors are adjusted automatically to stay readable.</p>
+            <div class="accent-scheme">
+              <h4 class="accent-scheme-title">Light appearance</h4>
+              <div id="accentGridLight" class="accent-grid" role="radiogroup" aria-label="Accent color for light appearance"></div>
+            </div>
+            <div class="accent-scheme">
+              <h4 class="accent-scheme-title">Dark appearance</h4>
+              <div id="accentGridDark" class="accent-grid" role="radiogroup" aria-label="Accent color for dark appearance"></div>
             </div>
           </div>
 
@@ -357,8 +372,9 @@
           <h3>Daily Usage Limit</h3>
           <label class="checkbox-option">
             <input type="checkbox" id="colEnableDailyLimit">
-            <span>Enforce maximum daily browsing time</span>
+            <span>Allow free access up to a daily limit, then block until midnight</span>
           </label>
+          <span class="field-hint">Without a limit, this collection's pause or block applies every visit. With a limit, sites are open until the time is used up. You can allow up to 3 short extensions per day, each needing a written intention. Strict Block collections get none.</span>
 
           <div id="dailyLimitInputGroup" class="limit-input-group is-hidden">
             <div class="input-with-addon">
@@ -486,12 +502,12 @@
               <label class="form-label">When Temporary Access Expires</label>
               <div class="radio-group" role="radiogroup" aria-label="When Access Expires">
                 <label class="radio-option">
-                  <input type="radio" name="colWhenExpires" value="IMMEDIATE" checked>
-                  <span>Re-block immediately when pass expires (Recommended)</span>
+                  <input type="radio" name="colWhenExpires" value="IMMEDIATE">
+                  <span>Re-block immediately when pass expires (a 1-minute warning shows on the toolbar icon)</span>
                 </label>
                 <label class="radio-option">
-                  <input type="radio" name="colWhenExpires" value="NEXT_NAV">
-                  <span>Allow active page until next navigation</span>
+                  <input type="radio" name="colWhenExpires" value="NEXT_NAV" checked>
+                  <span>Allow active page until next navigation (Recommended)</span>
                 </label>
               </div>
             </div>

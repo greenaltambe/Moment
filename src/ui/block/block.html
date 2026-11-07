@@ -8,6 +8,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-16.png">
   <link rel="stylesheet" href="../theme.css">
   <link rel="stylesheet" href="block.css">
+  <link rel="stylesheet" href="../expressive.css">
 </head>
 <body>
   <div class="block-card">
@@ -16,6 +17,7 @@
       <span class="brand-title">Moment</span>
     </div>
 
+    <div class="card-body">
     <h1 class="headline">Access Paused</h1>
     <p class="subtitle" id="reasonDesc">This website is restricted according to your active boundaries.</p>
 
@@ -30,9 +32,23 @@
       </div>
     </div>
 
+    <!-- Daily budget extension (shown only when a daily limit is used up) -->
+    <section id="extensionBox" class="extension-box is-hidden" aria-label="Need a little more time?">
+      <p class="extension-title">Need a little more time?</p>
+      <label for="extensionIntention" class="meta-label">What will you use it for?</label>
+      <textarea id="extensionIntention" class="extension-input" rows="2" maxlength="280" placeholder="e.g. Reply to one message, then close it"></textarea>
+      <button id="btnExtend" class="btn btn-secondary" disabled aria-disabled="true">Add 5 more minutes</button>
+      <p id="extensionNote" class="extension-note"></p>
+    </section>
+    <div id="extensionStatus" class="extension-note" role="status" aria-live="polite"></div>
+
+    </div>
+
+    <div class="card-footer">
     <div class="actions">
       <button id="btnBack" class="btn btn-primary">Go Back</button>
       <button id="btnClose" class="btn btn-secondary">Close Tab</button>
+    </div>
     </div>
   </div>
   <script type="module" src="block.js"></script>

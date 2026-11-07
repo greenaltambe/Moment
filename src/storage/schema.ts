@@ -9,12 +9,15 @@ import { SitePass } from '../core/models/site-pass.js';
 import { IntentPass } from '../core/models/intent-pass.js';
 import { FocusSession } from '../core/models/focus-session.js';
 import { PendingIntervention } from '../core/interventions/types.js';
+import { AccentId, DEFAULT_ACCENT_ID } from '../shared/accent.js';
 import { DailyUsageRecord, ActiveTrackingState } from '../core/usage/types.js';
 
 export const CURRENT_SCHEMA_VERSION = 3;
 
 export interface UserSettings {
   readonly theme: 'system' | 'light' | 'dark' | 'sepia';
+  readonly accentLight: AccentId;
+  readonly accentDark: AccentId;
   readonly timeFormat: '12h' | '24h';
   readonly reducedMotion: boolean;
   readonly allowPrivateBrowsing: boolean;
@@ -42,6 +45,8 @@ export interface MomentStorageEnvelope {
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   theme: 'system',
+  accentLight: DEFAULT_ACCENT_ID,
+  accentDark: DEFAULT_ACCENT_ID,
   timeFormat: '24h',
   reducedMotion: false,
   allowPrivateBrowsing: false,

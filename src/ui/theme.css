@@ -11,10 +11,10 @@
   color-scheme: light dark;
 
   /* Surfaces & Backgrounds */
-  --bg-main: #f8fafc;
-  --bg-sidebar: #ffffff;
-  --card-bg: #ffffff;
-  --elevated-bg: #f1f5f9;
+  --bg-main: #f3f7f1;
+  --bg-sidebar: #eef3ea;
+  --card-bg: #fbfdf9;
+  --elevated-bg: #e6eee2;
   --modal-backdrop: rgba(15, 23, 42, 0.45);
 
   /* Typography */
@@ -22,17 +22,17 @@
   --text-muted: #64748b;
 
   /* Borders & Dividers */
-  --border: #e2e8f0;
+  --border: #d9e2d5;
   --border-focus: #15803d;
 
   /* Inputs & Form Controls */
-  --input-bg: #f8fafc;
+  --input-bg: #f3f7f1;
   --input-border: #cbd5e1;
 
   /* Brand & Accents */
   --accent: #15803d;
   --accent-hover: #166534;
-  --accent-light: #f0fdf4;
+  --accent-light: #e0f3e2;
 
   /* Status Colors */
   --danger: #dc2626;
@@ -96,24 +96,24 @@
 :root[data-effective-theme="light"] {
   color-scheme: light;
 
-  --bg-main: #f8fafc;
-  --bg-sidebar: #ffffff;
-  --card-bg: #ffffff;
-  --elevated-bg: #f1f5f9;
+  --bg-main: #f3f7f1;
+  --bg-sidebar: #eef3ea;
+  --card-bg: #fbfdf9;
+  --elevated-bg: #e6eee2;
   --modal-backdrop: rgba(15, 23, 42, 0.45);
 
   --text-main: #0f172a;
   --text-muted: #64748b;
 
-  --border: #e2e8f0;
+  --border: #d9e2d5;
   --border-focus: #15803d;
 
-  --input-bg: #f8fafc;
+  --input-bg: #f3f7f1;
   --input-border: #cbd5e1;
 
   --accent: #15803d;
   --accent-hover: #166534;
-  --accent-light: #f0fdf4;
+  --accent-light: #e0f3e2;
 
   --danger: #dc2626;
   --danger-hover: #b91c1c;
@@ -149,10 +149,10 @@
   color-scheme: dark;
 
   /* Surfaces & Backgrounds */
-  --bg-main: #0f172a;
-  --bg-sidebar: #1e293b;
-  --card-bg: #1e293b;
-  --elevated-bg: #273549;
+  --bg-main: #101511;
+  --bg-sidebar: #1a211b;
+  --card-bg: #1a211b;
+  --elevated-bg: #252e26;
   --modal-backdrop: rgba(0, 0, 0, 0.7);
 
   /* Typography (14.5:1 on card-bg, 18.2:1 on bg-main) */
@@ -160,11 +160,11 @@
   --text-muted: #94a3b8; /* 5.4:1 contrast on card-bg */
 
   /* Borders & Dividers */
-  --border: #334155;
+  --border: #34403a;
   --border-focus: #22c55e;
 
   /* Inputs & Form Controls */
-  --input-bg: #0f172a;
+  --input-bg: #101511;
   --input-border: #475569;
 
   /* Brand & Accents (7.2:1 contrast on card-bg) */
@@ -210,19 +210,19 @@
   :root:not([data-theme="light"]):not([data-theme="sepia"]):not([data-effective-theme="light"]):not([data-effective-theme="sepia"]) {
     color-scheme: dark;
 
-    --bg-main: #0f172a;
-    --bg-sidebar: #1e293b;
-    --card-bg: #1e293b;
-    --elevated-bg: #273549;
+    --bg-main: #101511;
+    --bg-sidebar: #1a211b;
+    --card-bg: #1a211b;
+    --elevated-bg: #252e26;
     --modal-backdrop: rgba(0, 0, 0, 0.7);
 
     --text-main: #f8fafc;
     --text-muted: #94a3b8;
 
-    --border: #334155;
+    --border: #34403a;
     --border-focus: #22c55e;
 
-    --input-bg: #0f172a;
+    --input-bg: #101511;
     --input-border: #475569;
 
     --accent: #22c55e;

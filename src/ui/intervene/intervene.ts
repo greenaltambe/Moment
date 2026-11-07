@@ -237,6 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (!prefersReducedMotion) {
         breatheCircle.className = `breathe-circle ${phase.className}`;
+        breathePacer.dataset.phase = phase.className;
       }
 
       setTimeout(() => {
@@ -336,6 +337,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const intentPassReason = document.getElementById('intentPassReason') as HTMLTextAreaElement | null;
+  const syncIntentPassButtons = () => {
+    const ok = (intentPassReason?.value.trim().length ?? 0) >= 3;
+    durationButtons.forEach((b) => (b.disabled = !ok));
+  };
+  intentPassReason?.addEventListener('input', syncIntentPassButtons);
+
   durationButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       const durationMs = parseInt(btn.getAttribute('data-duration') || '900000', 10);
@@ -354,6 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
             type: 'REQUEST_INTENT_PASS',
             tabId,
             durationMs,
+            intentionText: intentPassReason ? intentPassReason.value.trim() : '',
           },
           (res: any) => {
             if (res && res.success && res.data?.destinationUrl) {
@@ -362,7 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
               window.location.replace(res.data.destinationUrl);
             } else {
               statusMsg.textContent = `Could not activate Intent Pass: ${res?.error || 'Unknown error'}`;
-              durationButtons.forEach((b) => (b.disabled = false));
+              syncIntentPassButtons();
               btnCancel.disabled = false;
               updateCompletionButtonState();
             }

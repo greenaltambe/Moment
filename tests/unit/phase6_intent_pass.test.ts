@@ -396,12 +396,18 @@ describe('Phase 6: Intent Passes (Momentary Access)', () => {
     const engine = new MomentDecisionEngine();
 
     it('Blocks or intervenes when no grant/pass is present', () => {
-      engine.setCollections({ [socialCollection.id]: socialCollection });
+      // No daily limit here: with a limit, access is free until the budget is spent.
+      const unlimited: Collection = {
+        ...socialCollection,
+        dailyLimitMs: null,
+        boundary: { ...socialCollection.boundary, limits: { dailyMinutes: null, sessionMinutes: null } },
+      };
+      engine.setCollections({ [unlimited.id]: unlimited });
       const decision = engine.evaluate({
         url: 'https://reddit.com/r/all',
         tabId: 10,
         timestamp: baseTime,
-        collections: { [socialCollection.id]: socialCollection },
+        collections: { [unlimited.id]: unlimited },
         activeGrants: [],
       });
       assert.ok(decision.action === 'INTERVENE' || decision.action === 'BLOCK');

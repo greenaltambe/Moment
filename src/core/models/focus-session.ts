@@ -14,4 +14,5 @@ export interface FocusSession {
   readonly durationMs: number; // Configured duration ms
   readonly selectedCollectionIds: readonly string[];
   readonly status: FocusSessionStatus;
+  readonly endRequestedAt?: number; // When the user asked to end early (starts the cool-off wait)
 }

@@ -18,7 +18,7 @@ Unlike traditional punitive site blockers that act like digital prison guards—
   * **Conscious Confirmation**: An immediate choice to proceed or turn back.
 * **Temporary Unlock Scope**: Configure whether an intervention pass unlocks only the **current tab** or **all tabs** until expiration.
 * **Intent Passes**: Require typing an explicit intention note before momentary access is granted, keeping you grounded in why you visited.
-* **Cumulative Daily Limits**: Cap daily time spent on specific collections using discrete, event-driven time accounting (zero battery drain).
+* **Daily Time Budgets**: Give a collection a daily limit and it stays open until the time is used up, then blocks until midnight. If you truly need more, up to 3 short extensions a day each need a written intention. Time is counted from discrete, event-driven checkpoints.
 * **Scheduled Boundaries**: Restrict sites 24/7, during specific daily hours, or across overnight intervals.
 * **Focus Mode**: Activate high-friction distraction-free sessions on demand.
 * **Strict Blocking Option**: Block access unconditionally without pause or pass options for periods requiring absolute focus.

@@ -715,3 +715,11 @@ h1 {
 :root[data-reduced-motion="true"] .timer-progress-bar {
   transition: none !important;
 }
+
+.focus-end-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm, 8px);
+  margin-top: var(--space-sm, 8px);
+  text-align: left;
+}

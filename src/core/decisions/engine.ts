@@ -14,7 +14,7 @@ import { parseCanonicalUrl } from '../matching/url.js';
 import { matchTarget } from '../matching/matcher.js';
 import { isBoundaryActive } from '../policies/boundary-evaluator.js';
 import { calculateSpecificity, compareSpecificity, SpecificityTuple } from './specificity.js';
-import { resolveCollectionLimitMs, calculateRemainingBudget, getLocalDateKey } from '../usage/index.js';
+import { resolveEffectiveLimitMs, calculateRemainingBudget, getLocalDateKey } from '../usage/index.js';
 
 interface CandidateMatch {
   readonly target: Target;
@@ -329,9 +329,14 @@ export class MomentDecisionEngine implements DecisionEngine {
       };
     }
 
-    // Winning rule is a restriction with active boundary
-    // Usage limits evaluation
-    const limitMs = resolveCollectionLimitMs(winningCollection);
+    // Winning rule is a restriction with active boundary.
+    // Daily budget model: with a daily limit configured, access is free until the budget
+    // (plus any granted extensions) is used up, then the collection is blocked until local midnight.
+    const limitMs = resolveEffectiveLimitMs(
+      winningCollection,
+      request.dailyExtensionMs?.[winningCollection.id] ?? 0
+    );
+    let withinBudget = false;
     if (limitMs !== null) {
       const dateKey = getLocalDateKey(new Date(timestamp));
       const usedMs =
@@ -341,12 +346,8 @@ export class MomentDecisionEngine implements DecisionEngine {
 
       const { isExhausted } = calculateRemainingBudget(usedMs, limitMs);
       if (isExhausted) {
-        const pauseConfig = winningCollection.boundary?.pause;
-        const isIntervention = pauseConfig && pauseConfig.type !== 'NONE';
-        const finalAction = isIntervention ? 'INTERVENE' : 'BLOCK';
-
         return {
-          action: finalAction,
+          action: 'BLOCK',
           reason: 'DAILY_LIMIT_EXHAUSTED',
           targetUrl: url,
           matchedRuleId: winningTarget.id,
@@ -354,7 +355,7 @@ export class MomentDecisionEngine implements DecisionEngine {
           explanation: `Daily time budget exhausted for collection '${winningCollection.name}'.`,
           timestamp,
           trace: {
-            finalAction,
+            finalAction: 'BLOCK',
             reason: 'DAILY_LIMIT_EXHAUSTED',
             matchedTarget: winningTarget,
             specificity: winningSpec,
@@ -366,6 +367,7 @@ export class MomentDecisionEngine implements DecisionEngine {
           },
         };
       }
+      withinBudget = true;
     }
 
     const pauseConfig = winningCollection.boundary?.pause;
@@ -393,6 +395,30 @@ export class MomentDecisionEngine implements DecisionEngine {
           collectionId: winningCollection.id,
           boundaryActive: true,
           focusModeActive: true,
+          isException: false,
+          totalCandidateRulesMatched: candidateMatches.length,
+        },
+      };
+    }
+
+    if (withinBudget) {
+      // Focus Mode (handled above) is stricter than the budget; otherwise free access within budget.
+      return {
+        action: 'ALLOW',
+        reason: 'WITHIN_DAILY_BUDGET',
+        targetUrl: url,
+        matchedRuleId: winningTarget.id,
+        collectionId: winningCollection.id,
+        explanation: `Within daily time budget for collection '${winningCollection.name}'.`,
+        timestamp,
+        trace: {
+          finalAction: 'ALLOW',
+          reason: 'WITHIN_DAILY_BUDGET',
+          matchedTarget: winningTarget,
+          specificity: winningSpec,
+          collectionId: winningCollection.id,
+          boundaryActive: true,
+          focusModeActive: false,
           isException: false,
           totalCandidateRulesMatched: candidateMatches.length,
         },

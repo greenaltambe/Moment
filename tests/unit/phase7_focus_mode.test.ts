@@ -518,7 +518,8 @@ describe('Phase 7: Focus Mode', () => {
         focusSession,
       });
 
-      assert.equal(decision.action, 'INTERVENE');
+      // Budget model: a spent budget blocks, even stricter than the Focus Mode pause
+      assert.equal(decision.action, 'BLOCK');
       assert.equal(decision.reason, 'DAILY_LIMIT_EXHAUSTED');
       assert.equal(decision.trace.focusModeActive, true);
     });

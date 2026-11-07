@@ -31,6 +31,7 @@ export interface PendingIntervention {
   readonly intentionText?: string | null;
   readonly createdAt: number;
   readonly updatedAt: number;
+  readonly presentedAt?: number; // When the pause page first loaded (authoritative start of the pause)
   readonly nonce: string;
   readonly status: InterventionStatus;
 }

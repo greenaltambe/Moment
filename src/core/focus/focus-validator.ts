@@ -6,7 +6,11 @@
 
 import { FocusSession } from '../models/focus-session.js';
 import { Collection } from '../models/collection.js';
+import { resolveCollectionLimitMs } from '../usage/accounting.js';
 import {
+  FOCUS_END_WAIT_MS,
+  FOCUS_END_REQUEST_TTL_MS,
+  FOCUS_END_WAIT_TOLERANCE_MS,
   ALLOWED_FOCUS_MODE_DURATIONS_MS,
   DEFAULT_FOCUS_MODE_DURATION_MS,
   MAX_FOCUS_MODE_DURATION_MS,
@@ -136,4 +140,32 @@ export function filterValidFocusCollectionIds(
   }
 
   return Array.from(validSet);
+}
+
+/**
+ * Focus Mode only changes behaviour for collections that are NOT already fully active:
+ * those with a schedule (Focus Mode applies them outside their window) or a daily limit
+ * (Focus Mode applies the pause even while time is left). Always-on collections without a
+ * limit are already restricted, so Focus Mode would add nothing.
+ */
+export function isFocusRelevantCollection(collection: Collection | null | undefined): boolean {
+  if (!collection || collection.enabled === false) return false;
+  if (collection.boundary?.schedule?.enabled) return true;
+  return resolveCollectionLimitMs(collection) !== null;
+}
+
+/**
+ * Decides whether an active Focus session may be ended now.
+ * The user must first request to end (starting a short wait), then confirm within a time window.
+ */
+export function getFocusEndGate(
+  session: FocusSession,
+  now: number
+): { allowed: boolean; waitMs: number; needsRequest: boolean } {
+  const requestedAt = session.endRequestedAt;
+  if (typeof requestedAt !== 'number' || now - requestedAt > FOCUS_END_REQUEST_TTL_MS) {
+    return { allowed: false, waitMs: FOCUS_END_WAIT_MS, needsRequest: true };
+  }
+  const waitMs = Math.max(0, requestedAt + FOCUS_END_WAIT_MS - FOCUS_END_WAIT_TOLERANCE_MS - now);
+  return { allowed: waitMs === 0, waitMs, needsRequest: false };
 }
